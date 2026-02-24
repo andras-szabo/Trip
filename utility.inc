@@ -15,3 +15,15 @@ MemCopy:
 	jr 	MemCopy
 MemCopyEnd:
 	ret
+
+MemClear:
+	ld	a, b
+	or	a, c
+	jr	z, MemClearEnd
+
+	xor	a
+	ld	[hli], a
+	dec	bc
+	jr	MemClear
+MemClearEnd:
+	ret

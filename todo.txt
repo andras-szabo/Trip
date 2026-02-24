@@ -17,3 +17,7 @@ o set up main.asm
 		  first screen should all have tile 1,
 		  otherwise empty.
 
+o add a 2x1 sprite (2 rows, 1 col)
+- move it around using subpixel velocity
+- collision detection w/ background tiles
+- jumping & gravity

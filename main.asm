@@ -20,6 +20,41 @@ CopyTileDataIntoVRAM:
 	call MemCopy
 	ret
 
+CopySpriteDataIntoVRAM:
+	ld	de, TracerSpriteTiles
+	ld	hl,	$8000
+	ld	bc, TracerSpriteTiles.End - TracerSpriteTiles
+	call MemCopy
+	ret
+
+ClearOAM:
+	ld	bc, 160
+	ld	hl, STARTOF(OAM)
+	call MemClear
+	ret
+
+InitTracerSprite:
+	; Top half
+	ld	hl, STARTOF(OAM)	; expecting Tracer's top sprite data to be at the start of OAM
+	ld	a, 120 + 16			; y coordinate
+	ld	[hli], a
+	ld	a, 16 + 8			; x coordinate
+	ld	[hli], a
+	xor	a					; tile ID
+	ld	[hli], a
+	ld	[hli], a
+
+	; Bottom half
+	ld	a, 120 + 16 + 8
+	ld	[hli], a
+	ld	a, 16 + 8
+	ld	[hli], a
+	ld	a, 1
+	ld	[hli], a
+	xor	a
+	ld	[hli], a
+	ret
+
 SetupTileMap:
 	; Clear tile map
 	ld	hl, $9800
@@ -91,10 +126,12 @@ ShutdownAudio:
 	ret
 
 TurnOnLCD:
-	ld	a, LCDC_ON | LCDC_BG_ON
+	ld	a, LCDC_ON | LCDC_BG_ON | LCDC_OBJ_ON
 	ld	[rLCDC], a
 	ld	a, %11100100
 	ld	[rBGP], a
+	ld	a, %11100100
+	ld	[rOBP0], a
 	ret
 
 TurnOffLCD:
@@ -108,6 +145,9 @@ Init:
 	call TurnOffLCD
 	call CopyTileDataIntoVRAM
 	call SetupTileMap
+	call CopySpriteDataIntoVRAM
+	call ClearOAM
+	call InitTracerSprite
 	call TurnOnLCD
 	ret
 
@@ -149,5 +189,26 @@ Tiles:
 	dw	`33300333
 	dw	`30333303
 	dw	`33333333
+.End:
+
+TracerSpriteTiles:
+	dw	`22222222
+	dw	`20000002
+	dw	`20000002
+	dw	`20000002
+	dw	`20000002
+	dw	`20000002
+	dw	`20000002
+	dw	`22222222
+
+	dw	`31111113
+	dw	`30000003
+	dw	`30000003
+	dw	`30000003
+	dw	`30000003
+	dw	`30000003
+	dw	`30000003
+	dw	`33333333
+
 .End:
 
