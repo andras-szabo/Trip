@@ -18,6 +18,6 @@ o set up main.asm
 		  otherwise empty.
 
 o add a 2x1 sprite (2 rows, 1 col)
-- move it around using subpixel velocity
+o move it around using subpixel velocity; horizontally
 - collision detection w/ background tiles
 - jumping & gravity
