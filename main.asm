@@ -3,8 +3,8 @@ INCLUDE "utility.inc"
 INCLUDE "input.inc"
 
 DEF SUBPIXELS_PER_PIXEL EQU 16
-DEF MAX_TRACER_SPEED_SPF EQU 40
-DEF DEFAULT_ACCELERATION EQU 12
+DEF MAX_TRACER_SPEED_SPF EQU 32
+DEF DEFAULT_ACCELERATION EQU 8
 DEF DEFAULT_FRICTION EQU 2
 
 SECTION "Header", ROM0[$100]
@@ -87,7 +87,7 @@ UpdateAcceleration:
 	; For testing, we'll pretend this is always pressed
 	ld	a, [wCurKeys]
 	and	a, PAD_RIGHT
-	jp	z, .CheckInertia
+	jp	z, .ApplyFriction
 
 	; If right is pressed, set the current acceleration to whatever
 	; it is defined as, but in the positive direction this time.
@@ -98,36 +98,50 @@ UpdateAcceleration:
 	add	d
 	ld	d, a
 
-.CheckInertia:
+.ApplyFriction:
 	
 	; If the player is not pressing any button, let's try to apply
 	; deceleration due to friction. If the player is already standing
 	; still, return early.
 
 	ld	a, d
-	and	d
+	and	a
 	ret	nz
 	
 	ld	a, [wSpeedPerFrameX]
 	and	a
 	ret	z
 
+	ld	b, a		; b now contains "old speed"
+
 	; At this point, we don't have a button pressed, but are in movement,
 	; so we should apply friction. Friction always acts against the current
 	; movement direction, so let's check the sign of the current velocity
 
 	bit	7, a					; a still contains [wSpeedPerFrameX]
-	jr	z, .InvertFrictionSign
+	jr	z, .ApplyNegativeFriction
 
 	; The sign bit of current speed per frame is 1, so we are moving to the
 	; left; in this case, we apply wFriction as it is (assuming it's positive)
 
 	ld	a, [wFriction]
 	ld	d, a
-	ret
+	jr	.CheckForOvershoot
 
-.InvertFrictionSign:
+.ApplyNegativeFriction:
 	ld	a, [wFriction]
+	cpl
+	inc	a
+	ld	d, a
+
+.CheckForOvershoot:
+	ld	a, b				; a now contains "old speed"
+	add	d					; a now contains "new speed"
+	xor	a, b				; a = new speed XOR old speed
+	bit	7, a
+	ret	z					; if signs match, all good, return d as it is
+
+	ld	a, [wSpeedPerFrameX]	; otherwise, let d = -a
 	cpl
 	inc	a
 	ld	d, a
