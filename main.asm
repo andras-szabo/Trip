@@ -72,6 +72,10 @@ UpdateAcceleration:
 	ld	d, a
 
 	ld	a, [wCurKeys]
+	ld	b, a
+	ld	a, [wNewKeys]
+	or	b
+
 	and	a, PAD_LEFT
 	jr	z, .CheckRight
 
@@ -84,8 +88,11 @@ UpdateAcceleration:
 	ld	d, a
 
 .CheckRight:
-	; For testing, we'll pretend this is always pressed
 	ld	a, [wCurKeys]
+	ld	b, a
+	ld	a, [wNewKeys]
+	or	b
+	
 	and	a, PAD_RIGHT
 	jp	z, .ApplyFriction
 
@@ -141,7 +148,7 @@ UpdateAcceleration:
 	bit	7, a
 	ret	z					; if signs match, all good, return d as it is
 
-	ld	a, [wSpeedPerFrameX]	; otherwise, let d = -a
+	ld	a, b				; otherwise, let d = -a
 	cpl
 	inc	a
 	ld	d, a
@@ -165,8 +172,11 @@ MoveTracer:
 	ld	[wSpeedPerFrameX], a
 
 	and	a
-	ret	z
+	jr	nz, .ContinueWithNonZeroSpeed
+	ld	d, a
+	ret
 
+.ContinueWithNonZeroSpeed:
 	; Cap current speed
 	bit	7, a
 	jr	z, .CapToPositive
@@ -204,11 +214,11 @@ MoveTracer:
 	add	b
 
 	; "a" now contains the current subpixel; what next?
-	; If [wCurrentSubPixelX] is positive:
+	; If a is positive:
 	;	divide current subpixel by 16 to see how many pixels we need to
 	;	advance to the right; use the remainder as the new current subpixel
 	;
-	; If [wCurrentSubPixelX] is negative:
+	; If a is negative:
 	;	divide by -16, use the remainder as the new current subpixel
 
 	bit	7, a
@@ -239,16 +249,18 @@ MoveTracer:
 	ld	[wCurrentSubPixelX], a
 	ld	a, c
 	and a
-	ret	z
+	jr	nz, .CalculatePositionDelta
+	xor	a
+	ld	d, a
+	ret	
 
 .CalculatePositionDelta:
-	dec	c
-	ret	z
-	ld	a, d
+	xor	a					; accumulate position delta in "a"
+.CalculatePositionDeltaLoop:
 	add	d
+	dec	c
+	jr	nz, .CalculatePositionDeltaLoop 
 	ld	d, a
-	jr	.CalculatePositionDelta
-
 	ret
 
 ;---------------------------------------------------------------------------------
