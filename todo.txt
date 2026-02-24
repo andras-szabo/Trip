@@ -1,0 +1,19 @@
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TODO - 24 February, 2026
+
+o set up git repo
+- push it to GitHub
+o create readme
+o set up main.asm
+	o initialize screen and stuff
+	o define tiles:
+		o 0: empty tile
+		o 1: full with color 1
+		o 2: full with color 2
+		o 3: full with color 3
+	
+	o define tilemap, but procedurally:
+		o top row, bottom row, edges on the
+		  first screen should all have tile 1,
+		  otherwise empty.
+
