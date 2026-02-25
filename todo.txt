@@ -1,8 +1,18 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TODO - 25 February, 2026
+
+- collision detection w/ background tiles
+	o go thru "GetTileByPixel" and comment it so it's clear what / how it does
+	- detect collisions
+	- calculate valid out-of-wall projection, use that to move
+
+- jumping & gravity
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 TODO - 24 February, 2026
 
 o set up git repo
-- push it to GitHub
+o push it to GitHub
 o create readme
 o set up main.asm
 	o initialize screen and stuff
@@ -19,5 +29,4 @@ o set up main.asm
 
 o add a 2x1 sprite (2 rows, 1 col)
 o move it around using subpixel velocity; horizontally
-- collision detection w/ background tiles
-- jumping & gravity
+

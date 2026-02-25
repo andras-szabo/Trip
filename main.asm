@@ -3,9 +3,11 @@ INCLUDE "utility.inc"
 INCLUDE "input.inc"
 
 DEF SUBPIXELS_PER_PIXEL EQU 16
-DEF MAX_TRACER_SPEED_SPF EQU 32
-DEF DEFAULT_ACCELERATION EQU 8
-DEF DEFAULT_FRICTION EQU 2
+DEF MAX_TRACER_SPEED_SPF EQU 48
+DEF DEFAULT_ACCELERATION EQU 12
+DEF DEFAULT_FRICTION EQU 8
+
+DEF WALL_TILE EQU 1
 
 SECTION "Header", ROM0[$100]
 	jp EntryPoint
@@ -26,6 +28,16 @@ Main:
 	call UpdateInput
 	call UpdateAcceleration
 	call MoveTracer				; d now contains horizontal position delta
+	call CheckWallCollisions	; d now contains _updated_ horizontal position delta
+
+	; OK so MoveTracer puts into d new positional delta, but also we have
+	; set current subpixel. So, what do do about collisions?
+	;
+	; - Check new position.
+	;	- If it's a blocking tile
+	;		- find previous position & subpixelposition
+	;		- calculate new position delta
+
 	call UpdateOAM
 
 	; Ideally, what should happen here?
@@ -152,6 +164,57 @@ UpdateAcceleration:
 	cpl
 	inc	a
 	ld	d, a
+
+	ret
+
+;---------------------------------------------------------------------------------
+; @param a: tileID
+; @return z: set if the tile is a wall
+IsWallTile:
+	cp	a, WALL_TILE
+	ret
+
+CheckWallCollisions:
+	; Expects "d" to contain position delta, to be applied to the sprite
+	; Returns in "d" (potentially) updated position delta
+
+	ld	a, [STARTOF(OAM) + 4 + 0]				; y coordinate of bottom sprite
+	sub a, 16 
+	ld	c, a
+
+	ld	a, [STARTOF(OAM) + 0 + 1]	; x coordinate of top sprite
+									; but (8, 16) in OAM coordinates is
+									; (0, 0) on screen.
+	; Assume we're moving left. In this case, the pixel we'll want to check for 
+	; the collision is the OAM X coordinate, minus 8, minus 1, plus "d" (which
+	; is a negative number. Hence the "sub a, 9".
+	sub	a, 9
+	ld	b, a
+
+	; If we're actually moving right, then the previous offset of 9 must be counter
+	; balanced by 8 + 1, and we need to also add an additional +1, to check the next
+	; pixel, to the right of the sprite. Hence "add a, 10".
+	bit	7, d
+	jr	nz, .SkipWallCheckOnRight
+
+	; Check wall on the right
+	add	a, 10 
+	ld	b, a
+
+.SkipWallCheckOnRight:
+	ld	a, d		; a now contains the X position delta
+	add	a, b
+
+	call GetTileByPixel		; hl now has the address of the tile we'd move to
+	ld	a, [hl]		
+
+	call IsWallTile			; z set if the tile is a wall
+	ret	nz					; if not a wall, return
+
+	xor	a
+	ld	d, a				; clear d; TODO - this will have to be better,
+							; and accounting for the fact that we can potentially
+							; move quicker than 1 tile / frame
 
 	ret
 
@@ -445,13 +508,13 @@ Tiles:
 	dw	`00000000
 	dw	`00000000
 
-	dw	`11111111		; Tile 1, of color 1
-	dw	`11111111
-	dw	`11011011
-	dw	`11100111
-	dw	`11100111
-	dw	`11011011
-	dw	`11111111
+	dw	`11111111		; Tile 1; wall.
+	dw	`12222221
+	dw	`12311321
+	dw	`12133121
+	dw	`12133121
+	dw	`12311321
+	dw	`12222221
 	dw	`11111111
 
 	dw	`22222222		; Tile 2, of color 2
