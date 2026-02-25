@@ -27,6 +27,7 @@ Main:
 	call WaitForVBlank
 
 	call UpdateInput
+
 	call UpdateHorizontalAcceleration
 	ld	a, d
 	ldh	[wCurrentAccX], a
@@ -35,7 +36,7 @@ Main:
 	ld	a, e
 	ldh	[wCurrentAccY], a
 
-	; Integrate horizontal acceleration
+	; Integrate horizontal acceleration	---------------------------------------
 
 	ldh	a, [wCurrentAccX]
 	ld	hl, wSpeedPerFrameX
@@ -44,7 +45,7 @@ Main:
 	ld	a, d
 	ldh	[wCurrentPosDeltaX], a
 
-	; Integrate vertical acceleration
+	; Integrate vertical acceleration -----------------------------------------
 
 	ldh	a, [wCurrentAccY]
 	ld	hl, wSpeedPerFrameY
@@ -53,38 +54,22 @@ Main:
 	ld	a, d
 	ldh	[wCurrentPosDeltaY], a
 
-	;call MoveTracer				; d now contains horizontal position delta
-	;call MoveTracerVertical		; and e now contains vertical positional delta
-
+	; Check for collisions ----------------------------------------------------
 	ldh	a, [wCurrentPosDeltaX]
 	ld	d, a
 	ldh a, [wCurrentPosDeltaY]
 	ld	e, a
 	call CheckWallCollisions	; d now contains _updated_ horizontal position delta
-	call UpdateOAM
 
-	; So say updateHorizontalAcceleration calculates horizontal acceleration.
-	; To integrate this, I need:
-	; 	- current speed
-	;	- current subpixel position
-	;	- current acceleration
-	;
-	; So the question is, how to pass all of this as parameters?
-	;
-	; ld 	a, currentAcceleration
-	; ld	hl, currentSpeedAddress	
-	; ld	de, currentSubPixelPositionAddress
-	; 
-	; Then, integrate will update currentSpeed and currentSubPixelPosition,
-	; and return in d the suggested position delta. Let's try it like this.
+	; Actually update OAM -------------------------------------------------------
+	call UpdateOAM
 
 	jp 	Main
 
 ;---------------------------------------------------------------------------------
+;@param d: horizontal position delta, in pixels
+;@param e: vertical position delta, in pixels
 UpdateOAM:
-	; Expects in "d" the horizontal position delta, in pixels
-	; Expects in "e" the vertical position delta, in pixels
-
 	ld	a, [STARTOF(OAM) + 0]
 	add	e
 	ld	[STARTOF(OAM) + 0 + 0], a			; Top sprite, y coord
@@ -363,211 +348,6 @@ IntegrateAcceleration:
 	add	b
 	dec	c
 	jr	nz, .CalculatePositionDeltaLoop
-	ld	d, a
-	ret
-	
-;	-------------------------------------------------------------
-
-MoveTracerVertical:
-	; Applies current acceleration to speed, and calculates vertical position
-	; delta (in pixels) to apply.
-	; 
-	; Expects "e" to contain the current vertical acceleration in subpixels;
-	; returns in "e" the vertical position delta.
-
-	; Update current speed
-	ld	a, [wSpeedPerFrameY]
-	add	a, e
-	ld	[wSpeedPerFrameY], a
-	
-	and	a
-	jr	nz, .ContinueWithNonZeroSpeed
-	ld	e, a
-	ret
-
-.ContinueWithNonZeroSpeed:
-	; Cap current speed
-	bit 7, a
-	jr	z, .CapToPositive
-
-	; If we're here, we have to check if [wSpeedPerFrameY], also in a, is higher
-	; than the allowed max negative (vertical) speed
-	add	a, MAX_TRACER_SPEED_SPF
-	bit	7, a
-	jr	z, .DoMove
-
-	; ... it is, so we need to clamp it:
-	ld	a, MAX_TRACER_SPEED_SPF
-	cpl
-	inc	a
-	ld	[wSpeedPerFrameY], a
-	jr	.DoMove
-
-.CapToPositive:
-	cp	MAX_TRACER_SPEED_SPF
-	jr	c, .DoMove
-	ld	a, MAX_TRACER_SPEED_SPF
-	ld	[wSpeedPerFrameY], a
-
-.DoMove:
-	xor a
-	ld	c, a			; c will contain the number of full pixels to move
-	ld	e, a			; e will be either -1 or 1, to show the direction of the move
-
-	; Calculate new subpixel
-
-	ld	a, [wSpeedPerFrameY]
-	ld	b, a
-	ld	a, [wCurrentSubPixelY]
-	add	b
-
-	; a now contains the current subpixel; so count how many pixels we need to
-	; move, so that a ends up being between 0 and 15 (incl).
-
-	bit	7, a
-	jr	z, .SubPixelLoopRight
-
-	; If we're here - new subpixel is negative -,then for sure we have to step
-	; one pixel in the negative direction.
-
-	dec	e
-
-.SubPixelLoopLeft:
-	bit	7, a				; is subpixel non-negative already?
-	jr	z, .MoveNext		; this really is a horrible name
-	inc	c
-	add	SUBPIXELS_PER_PIXEL
-	jr	.SubPixelLoopLeft
-
-.SubPixelLoopRight:
-	inc	e					; If there's any pixel to move, it will be in the positive direction
-.SubPixelLoopRight2:
-	cp	SUBPIXELS_PER_PIXEL
-	jr	c, .MoveNext
-	inc	c
-	sub	SUBPIXELS_PER_PIXEL
-	jr	.SubPixelLoopRight2
-
-.MoveNext:
-	ld	[wCurrentSubPixelY], a
-	ld	a, c
-	and	a
-	jr	nz, .CalculatePositionDelta
-	xor	a
-	ld	e, a
-	ret
-
-.CalculatePositionDelta:
-	xor	a
-.CalculatePositionDeltaLoop:
-	add	e
-	dec	c
-	jr	nz, .CalculatePositionDeltaLoop
-	ld	e, a
-	ret
-
-MoveTracer:
-	; Applies current acceleration to speed, and calculates position delta
-	; (in pixels) to apply.
-
-	; Expects "d" to contain current horizontal acceleration in subpixels;
-	; returns in "d" horizontal position delta
-	
-	; Update current speed
-
-	ld	a, [wSpeedPerFrameX]
-	add	a, d
-	ld	[wSpeedPerFrameX], a
-
-	and	a
-	jr	nz, .ContinueWithNonZeroSpeed
-	ld	d, a
-	ret
-
-.ContinueWithNonZeroSpeed:
-	; Cap current speed
-	bit	7, a
-	jr	z, .CapToPositive
-
-	; If we're here, we have to check if [wSpeedPerFrameX], also in "a", is higher
-	; than the allowed max negative speed
-
-	add	a, MAX_TRACER_SPEED_SPF
-	bit	7, a
-	jr	z, .DoMove
-
-	ld	a, MAX_TRACER_SPEED_SPF
-	cpl
-	inc	a
-	ld	[wSpeedPerFrameX], a
-	jr	.DoMove
-
-.CapToPositive:
-	cp	MAX_TRACER_SPEED_SPF
-	jr	c, .DoMove
-	ld	a, MAX_TRACER_SPEED_SPF
-	ld	[wSpeedPerFrameX], a
-
-.DoMove:
-	xor	a	
-	ld	c, a	; c will contain the number of full pixels to move
-	ld	d, a	; d will be either -1 or 1, to show the direction of
-				; the full pixel move
-
-	; Calculate new subpixel
-
-	ld	a, [wSpeedPerFrameX]
-	ld	b, a
-	ld	a, [wCurrentSubPixelX]
-	add	b
-
-	; "a" now contains the current subpixel; what next?
-	; If a is positive:
-	;	divide current subpixel by 16 to see how many pixels we need to
-	;	advance to the right; use the remainder as the new current subpixel
-	;
-	; If a is negative:
-	;	divide by -16, use the remainder as the new current subpixel
-
-	bit	7, a
-	jr	z, .SubPixelLoopRight
-
-	; If we're here (new subpixel is negative), then for sure we have to
-	; step a pixel to the left.
-
-	dec	d
-
-.SubPixelLoopLeft:
-	bit	7, a			; OK, are we positive already?
-	jr	z, .MoveNext	; this is a horrible name
-	inc	c
-	add	SUBPIXELS_PER_PIXEL
-	jr	.SubPixelLoopLeft
-
-.SubPixelLoopRight:
-	inc	d				; If there's any pixel to move, it will be to the right
-.SubPixelLoopRight2:
-	cp	SUBPIXELS_PER_PIXEL
-	jr	c, .MoveNext
-	inc	c
-	sub SUBPIXELS_PER_PIXEL
-	jr .SubPixelLoopRight2
-
-.MoveNext:
-	ld	[wCurrentSubPixelX], a
-	ld	a, c
-	and a
-	jr	nz, .CalculatePositionDelta
-	xor	a
-	ld	d, a
-	ret	
-
-.CalculatePositionDelta:
-	xor	a					; accumulate position delta in "a"
-.CalculatePositionDeltaLoop:
-	add	d
-	dec	c
-	jr	nz, .CalculatePositionDeltaLoop 
 	ld	d, a
 	ret
 
