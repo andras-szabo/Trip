@@ -3,10 +3,18 @@ TODO - 25 February, 2026
 
 - collision detection w/ background tiles
 	o go thru "GetTileByPixel" and comment it so it's clear what / how it does
-	- detect collisions
-	- calculate valid out-of-wall projection, use that to move
+	... detect collisions
+	... calculate valid out-of-wall projection, use that to move
 
 - jumping & gravity
+	- well, how to do jumping?, the simplest way?
+	- so long as some button is pressed, set vertical velocity
+	  to some value
+	- then, keep track of ground / air state
+	- then, if in the air, allow upwards acceleration for some
+	  time (but perhaps dissipating acceleration)
+	- after jump time is over, and in the air, apply gravity
+	  
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 TODO - 24 February, 2026

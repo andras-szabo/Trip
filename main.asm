@@ -6,6 +6,7 @@ DEF SUBPIXELS_PER_PIXEL EQU 16
 DEF MAX_TRACER_SPEED_SPF EQU 48
 DEF DEFAULT_ACCELERATION EQU 12
 DEF DEFAULT_FRICTION EQU 8
+DEF DEFAULT_JUMP_STRENGTH EQU 12
 
 DEF WALL_TILE EQU 1
 
@@ -26,8 +27,12 @@ Main:
 	call WaitForVBlank
 
 	call UpdateInput
-	call UpdateAcceleration
+	call UpdateHorizontalAcceleration
+	call UpdateVerticalAcceleration
+
 	call MoveTracer				; d now contains horizontal position delta
+	call MoveTracerVertical		; and e now contains vertical positional delta
+
 	call CheckWallCollisions	; d now contains _updated_ horizontal position delta
 
 	; OK so MoveTracer puts into d new positional delta, but also we have
@@ -53,6 +58,13 @@ Main:
 ;---------------------------------------------------------------------------------
 UpdateOAM:
 	; Expects in "d" the horizontal position delta, in pixels
+	; Expects in "e" the vertical position delta, in pixels
+
+	ld	a, [STARTOF(OAM) + 0]
+	add	e
+	ld	[STARTOF(OAM) + 0 + 0], a			; Top sprite, y coord
+	add 8
+	ld	[STARTOF(OAM) + 4 + 0], a			; Bottom sprite, y coord
 
 	ld	a, [STARTOF(OAM) + 1]
 	add	d
@@ -74,7 +86,31 @@ UpdateInput:
 	ld	[wNewKeys], a
 	ret
 
-UpdateAcceleration:
+UpdateVerticalAcceleration:
+	; Puts into "e" the desired vertical acceleration, in subpixels
+	; per frame
+
+	xor	a
+	ld	e, a
+
+	; Check if "a" is pressed
+	ld	a, [wCurKeys]
+	ld	b, a
+	ld	a, [wNewKeys]
+	or	b
+
+	and	a, PAD_A
+
+	; For now, let's just return if not pressed
+	ret	z
+
+	ld	a, [wJumpStrength]
+	cpl
+	inc	a
+	ld	e, a
+	ret
+
+UpdateHorizontalAcceleration:
 	; Puts into "d" the desired horizontal acceleration, in subpixels
 	; per frame.
 
@@ -219,11 +255,107 @@ CheckWallCollisions:
 	ret
 
 ;---------------------------------------------------------------------------------
+MoveTracerVertical:
+	; Applies current acceleration to speed, and calculates vertical position
+	; delta (in pixels) to apply.
+	; 
+	; Expects "e" to contain the current vertical acceleration in subpixels;
+	; returns in "e" the vertical position delta.
+
+	; Update current speed
+	ld	a, [wSpeedPerFrameY]
+	add	a, e
+	ld	[wSpeedPerFrameY], a
+	
+	and	a
+	jr	nz, .ContinueWithNonZeroSpeed
+	ld	e, a
+	ret
+
+.ContinueWithNonZeroSpeed:
+	; Cap current speed
+	bit 7, a
+	jr	z, .CapToPositive
+
+	; If we're here, we have to check if [wSpeedPerFrameY], also in a, is higher
+	; than the allowed max negative (vertical) speed
+	add	a, MAX_TRACER_SPEED_SPF
+	bit	7, a
+	jr	z, .DoMove
+
+	; ... it is, so we need to clamp it:
+	ld	a, MAX_TRACER_SPEED_SPF
+	cpl
+	inc	a
+	ld	[wSpeedPerFrameY], a
+	jr	.DoMove
+
+.CapToPositive:
+	cp	MAX_TRACER_SPEED_SPF
+	jr	c, .DoMove
+	ld	a, MAX_TRACER_SPEED_SPF
+	ld	[wSpeedPerFrameY], a
+
+.DoMove:
+	xor a
+	ld	c, a			; c will contain the number of full pixels to move
+	ld	e, a			; e will be either -1 or 1, to show the direction of the move
+
+	; Calculate new subpixel
+
+	ld	a, [wSpeedPerFrameY]
+	ld	b, a
+	ld	a, [wCurrentSubPixelY]
+	add	b
+
+	; a now contains the current subpixel; so count how many pixels we need to
+	; move, so that a ends up being between 0 and 15 (incl).
+
+	bit	7, a
+	jr	z, .SubPixelLoopRight
+
+	; If we're here - new subpixel is negative -,then for sure we have to step
+	; one pixel in the negative direction.
+
+	dec	e
+
+.SubPixelLoopLeft:
+	bit	7, a				; is subpixel non-negative already?
+	jr	z, .MoveNext		; this really is a horrible name
+	inc	c
+	add	SUBPIXELS_PER_PIXEL
+	jr	.SubPixelLoopLeft
+
+.SubPixelLoopRight:
+	inc	e					; If there's any pixel to move, it will be in the positive direction
+.SubPixelLoopRight2:
+	cp	SUBPIXELS_PER_PIXEL
+	jr	c, .MoveNext
+	inc	c
+	sub	SUBPIXELS_PER_PIXEL
+	jr	.SubPixelLoopRight2
+
+.MoveNext:
+	ld	[wCurrentSubPixelY], a
+	ld	a, c
+	and	a
+	jr	nz, .CalculatePositionDelta
+	xor	a
+	ld	e, a
+	ret
+
+.CalculatePositionDelta:
+	xor	a
+.CalculatePositionDeltaLoop:
+	add	e
+	dec	c
+	jr	nz, .CalculatePositionDeltaLoop
+	ld	e, a
+	ret
 
 MoveTracer:
-	; Applies current acceleration to speed, and moves her into a new position.
-	; ? Where will this return the new position? Let's try to pack it into a
-	; a register
+	; Applies current acceleration to speed, and calculates position delta
+	; (in pixels) to apply.
 
 	; Expects "d" to contain current horizontal acceleration in subpixels;
 	; returns in "d" horizontal position delta
@@ -257,7 +389,7 @@ MoveTracer:
 	ld	[wSpeedPerFrameX], a
 	jr	.DoMove
 
-.CapToPositive
+.CapToPositive:
 	cp	MAX_TRACER_SPEED_SPF
 	jr	c, .DoMove
 	ld	a, MAX_TRACER_SPEED_SPF
@@ -464,6 +596,9 @@ InitGlobals:
 	ld	a, DEFAULT_ACCELERATION
 	ld	[wAcceleration], a
 
+	ld	a, DEFAULT_JUMP_STRENGTH
+	ld	[wJumpStrength], a
+
 	ld	a, DEFAULT_FRICTION
 	ld	[wFriction], a
 
@@ -489,6 +624,7 @@ wCurrentSubPixelX:	db
 wCurrentSubPixelY:	db
 
 wAcceleration:		db
+wJumpStrength:		db		; starting vertical acceleration, sp/frame
 wFriction:			db		; reducing lateral movement speed, sp/frame
 wGravity:			db		; sp/frame, to be applied on the y axis
 
