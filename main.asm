@@ -28,30 +28,55 @@ Main:
 
 	call UpdateInput
 	call UpdateHorizontalAcceleration
+	ld	a, d
+	ldh	[wCurrentAccX], a
+
 	call UpdateVerticalAcceleration
+	ld	a, e
+	ldh	[wCurrentAccY], a
 
-	call MoveTracer				; d now contains horizontal position delta
-	call MoveTracerVertical		; and e now contains vertical positional delta
+	; Integrate horizontal acceleration
 
+	ldh	a, [wCurrentAccX]
+	ld	hl, wSpeedPerFrameX
+	ld	de, wCurrentSubPixelX
+	call IntegrateAcceleration
+	ld	a, d
+	ldh	[wCurrentPosDeltaX], a
+
+	; Integrate vertical acceleration
+
+	ldh	a, [wCurrentAccY]
+	ld	hl, wSpeedPerFrameY
+	ld	de, wCurrentSubPixelY
+	call IntegrateAcceleration
+	ld	a, d
+	ldh	[wCurrentPosDeltaY], a
+
+	;call MoveTracer				; d now contains horizontal position delta
+	;call MoveTracerVertical		; and e now contains vertical positional delta
+
+	ldh	a, [wCurrentPosDeltaX]
+	ld	d, a
+	ldh a, [wCurrentPosDeltaY]
+	ld	e, a
 	call CheckWallCollisions	; d now contains _updated_ horizontal position delta
-
-	; OK so MoveTracer puts into d new positional delta, but also we have
-	; set current subpixel. So, what do do about collisions?
-	;
-	; - Check new position.
-	;	- If it's a blocking tile
-	;		- find previous position & subpixelposition
-	;		- calculate new position delta
-
 	call UpdateOAM
 
-	; Ideally, what should happen here?
-	; call UpdateInput			
-	; call UpdateAcceleration	; yields desired velocity
-	; call UpdateGravity		; modifies desired velocity
-	; call MoveTracer			; calculate new position values, don't write to OAM yet
-	; call CheckCollisions		; modify position values
-	; call UpdateOAM			; now update OAM
+	; So say updateHorizontalAcceleration calculates horizontal acceleration.
+	; To integrate this, I need:
+	; 	- current speed
+	;	- current subpixel position
+	;	- current acceleration
+	;
+	; So the question is, how to pass all of this as parameters?
+	;
+	; ld 	a, currentAcceleration
+	; ld	hl, currentSpeedAddress	
+	; ld	de, currentSubPixelPositionAddress
+	; 
+	; Then, integrate will update currentSpeed and currentSubPixelPosition,
+	; and return in d the suggested position delta. Let's try it like this.
 
 	jp 	Main
 
@@ -255,6 +280,94 @@ CheckWallCollisions:
 	ret
 
 ;---------------------------------------------------------------------------------
+;@param a: current acceleration (subpixels/frame)
+;@param hl: address of current speed (subpixels/frame)
+;@param de: address of current subpixel
+;@return d: position delta (pixels), as a result of current acceleration.
+IntegrateAcceleration:
+	; Applies current acceleration (subpixels/frame) to current speed,
+	; and calculates the position delta, clamped, that the current speed
+	; will result in.
+
+	ld	b, a		; save current acceleration into d
+
+	; Update current speed
+	ld	a, [hl]
+	add	b
+	ld	[hl], a
+
+	; If current speed is 0, just return with a positional delta of 0.
+	and	a
+	jr	nz, .ContinueWithNonZeroSpeed
+	ld	d, a
+	ret
+
+.ContinueWithNonZeroSpeed:
+	ld	a, MAX_TRACER_SPEED_SPF	
+	call CapAbsoluteValue
+
+	xor a
+	ld	c, a			; c will contain the number of full pixels to move
+						; later on, d will be set to contain -1 or 1, to
+						; indicate the direction
+
+	; Calculate new subpixel
+
+	ld	a, [hl]
+	ld	b, a
+	ld	a, [de]			; load into a the value of current subpixel
+	add	b
+
+	ld	b, c			; clear "b". it will be used as a temp register,
+						; to keep track of the positional delta.
+
+	; a now contains the current subpixel; so count how many pixels we need to
+	; move, so that a ends up being between 0 and 15 (incl).
+
+	bit	7, a
+	jr	z, .SubPixelLoopRight
+
+	; If we're here - new subpixel is negative -,then for sure we have to step
+	; one pixel in the negative direction.
+
+	dec	b
+
+.SubPixelLoopLeft:
+	bit	7, a				; is subpixel non-negative already?
+	jr	z, .MoveNext		; this really is a horrible name
+	inc	c
+	add	SUBPIXELS_PER_PIXEL
+	jr	.SubPixelLoopLeft
+
+.SubPixelLoopRight:
+	inc	b					; If there's any pixel to move, it will be in the positive direction
+.SubPixelLoopRight2:
+	cp	SUBPIXELS_PER_PIXEL
+	jr	c, .MoveNext
+	inc	c
+	sub	SUBPIXELS_PER_PIXEL
+	jr	.SubPixelLoopRight2
+
+.MoveNext:
+	ld	[de], a
+	ld	a, c
+	and	a
+	jr	nz, .CalculatePositionDelta
+	xor	a
+	ld	d, a				; Putting 0 into the return value 
+	ret
+
+.CalculatePositionDelta:
+	xor	a
+.CalculatePositionDeltaLoop:
+	add	b
+	dec	c
+	jr	nz, .CalculatePositionDeltaLoop
+	ld	d, a
+	ret
+	
+;	-------------------------------------------------------------
+
 MoveTracerVertical:
 	; Applies current acceleration to speed, and calculates vertical position
 	; delta (in pixels) to apply.
@@ -627,6 +740,12 @@ wAcceleration:		db
 wJumpStrength:		db		; starting vertical acceleration, sp/frame
 wFriction:			db		; reducing lateral movement speed, sp/frame
 wGravity:			db		; sp/frame, to be applied on the y axis
+
+SECTION "Foo", HRAM[$FF80]
+wCurrentAccX:		db
+wCurrentAccY:		db
+wCurrentPosDeltaX:	db
+wCurrentPosDeltaY:	db
 
 SECTION "Input variables", WRAM0
 wCurKeys:	db

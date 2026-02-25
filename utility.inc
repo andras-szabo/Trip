@@ -28,6 +28,32 @@ MemClear:
 MemClearEnd:
 	ret
 
+;@param hl: address of value to cap
+;@param a: maximum absolute value
+CapAbsoluteValue:
+	ld	b, a		; save value
+
+	ld	a, [hl]
+	bit	7, a
+	jr	z, .CapToPositive
+
+	add	b	
+	bit	7, a
+	ret	z
+
+	ld	a, b
+	cpl
+	inc a
+	ld	[hl], a
+	ret
+
+.CapToPositive:
+	cp	b
+	ret	c
+	ld	a, b
+	ld	[hl], a
+	ret
+
 ; GetTileByPixel
 ; Converts a pixel position to a tilemap address
 ; hl = $9800 + X + Y * 32
