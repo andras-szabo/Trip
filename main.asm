@@ -7,6 +7,7 @@ DEF MAX_TRACER_SPEED_SPF EQU 48
 DEF DEFAULT_ACCELERATION EQU 12
 DEF DEFAULT_FRICTION EQU 8
 DEF DEFAULT_JUMP_STRENGTH EQU 12
+DEF DEFAULT_GRAVITY EQU 16
 
 DEF WALL_TILE EQU 1
 
@@ -112,6 +113,8 @@ UpdateVerticalAcceleration:
 	and	a, PAD_A
 
 	; For now, let's just return if not pressed
+	ld	a, [wGravity]
+	ld	e, a
 	ret	z
 
 	ld	a, [wJumpStrength]
@@ -220,10 +223,56 @@ IsWallTile:
 	cp	a, WALL_TILE
 	ret
 
+;@param d: horizontal position delta
+;@param e: vertical position delta
+;@return d: updated horizontal position delta
+;@return e: updated vertical position delta
 CheckWallCollisions:
-	; Expects "d" to contain position delta, to be applied to the sprite
-	; Returns in "d" (potentially) updated position delta
 
+	; Let's do vertical checks first.
+	; Check for bottom
+	ld	a, [STARTOF(OAM) + 0 + 1]				; x coordinate of sprites
+	sub	4										; we'll use the centre point for now
+	ld	b, a									; b contains the x coord to check
+
+	; First, let's assume we're falling
+	ld	a, [STARTOF(OAM) + 4 + 0]				; y coordinate of bottom sprite
+	sub 7										; we'll look a pixel down.
+												; How does it work?
+					; OAM contains object's vertical position on screen + 16.
+					; To get the object's top position, we need to subtract
+					; 16. But we're actually interested in the bottom position,
+					; that would be y - 8; and actually 1 pixel below _that_,
+					; so hence -7.
+
+	ld	c, a
+
+	bit	7, e
+	jr	nz, .SkipWallCheckOnBottom
+
+	; Check wall on the bottom
+	call GetTileByPixel
+	ld	a, [hl]
+	call IsWallTile				; set z if the tile is a wall
+	jr	nz, .CheckHorizontal
+	xor	a
+	ld	e, a
+	jr	.CheckHorizontal
+
+.SkipWallCheckOnBottom:
+	ld	a, c
+	sub	a, 8 + 8 + 2
+	ld	c, a
+
+	; Check wall on top
+	call GetTileByPixel
+	ld	a, [hl]
+	call IsWallTile
+	jr	nz, .CheckHorizontal
+	xor	a
+	ld	e, a
+
+.CheckHorizontal:
 	ld	a, [STARTOF(OAM) + 4 + 0]				; y coordinate of bottom sprite
 	sub a, 16 
 	ld	c, a
@@ -452,6 +501,15 @@ SetupTileMap:
 	or	c
 	jr	nz, .RightLoop
 
+	; Let's put some platforms down as well
+	ld	hl, $9800 + (32 * 8) + 5
+	ld	c, 8
+.MiddlePlatformLoop:
+	ld	a, 1
+	ld	[hli], a
+	dec c
+	jr	nz, .MiddlePlatformLoop
+
 	ret
 
 WaitForVBlank:
@@ -494,6 +552,9 @@ InitGlobals:
 
 	ld	a, DEFAULT_FRICTION
 	ld	[wFriction], a
+
+	ld	a, DEFAULT_GRAVITY
+	ld	[wGravity], a
 
 	ret
 
