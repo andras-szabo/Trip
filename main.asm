@@ -3,10 +3,10 @@ INCLUDE "utility.inc"
 INCLUDE "input.inc"
 
 DEF SUBPIXELS_PER_PIXEL EQU 16
-DEF MAX_TRACER_SPEED_SPF EQU 48
+DEF MAX_TRACER_SPEED_SPF EQU 112
 DEF DEFAULT_ACCELERATION EQU 12
 DEF DEFAULT_FRICTION EQU 8
-DEF DEFAULT_JUMP_STRENGTH EQU 12
+DEF DEFAULT_JUMP_STRENGTH EQU 64
 DEF DEFAULT_GRAVITY EQU 16
 
 DEF WALL_TILE EQU 1
@@ -105,7 +105,7 @@ UpdateVerticalAcceleration:
 	ld	e, a
 
 	; Check if "a" is pressed
-	ld	a, [wCurKeys]
+	ld	a, 0;[wCurKeys]
 	ld	b, a
 	ld	a, [wNewKeys]
 	or	b
@@ -229,6 +229,9 @@ IsWallTile:
 ;@return e: updated vertical position delta
 CheckWallCollisions:
 
+	; TODO: This should not actually read from STARTOF(OAM),
+	; 		but instead use the WRAM copies
+
 	; Let's do vertical checks first.
 	; Check for bottom
 	ld	a, [STARTOF(OAM) + 0 + 1]				; x coordinate of sprites
@@ -257,6 +260,7 @@ CheckWallCollisions:
 	jr	nz, .CheckHorizontal
 	xor	a
 	ld	e, a
+	ld	[wSpeedPerFrameY], a
 	jr	.CheckHorizontal
 
 .SkipWallCheckOnBottom:
@@ -271,6 +275,7 @@ CheckWallCollisions:
 	jr	nz, .CheckHorizontal
 	xor	a
 	ld	e, a
+	ld	[wSpeedPerFrameY], a
 
 .CheckHorizontal:
 	ld	a, [STARTOF(OAM) + 4 + 0]				; y coordinate of bottom sprite
@@ -310,6 +315,7 @@ CheckWallCollisions:
 	ld	d, a				; clear d; TODO - this will have to be better,
 							; and accounting for the fact that we can potentially
 							; move quicker than 1 tile / frame
+	ld	[wSpeedPerFrameX], a
 
 	ret
 
