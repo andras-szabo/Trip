@@ -1,0 +1,39 @@
+Implementing a large (as in, larger than 32x32) world; the plan thereof
+
+-Store the character's x and y world position as 16-bit variables.
+	Those 16 bits are the limits we have; let's maybe start at 0, 0,
+	and extend to 32767 in +/-. (Or whatever 65535/2 is.)
+-Store the camera position (x and y) also a 16-bit variables.
+
+- In the game loop:
+	- first update character's world position.
+	- then calculate new camera position following some camera
+	  behaviour rules, e.g. dead zones and "stiffness" (how quickly
+	  the camera follows the player) and lookahead amount.
+	  	When updating the camera position, store the camera's position
+		change since the last frame.
+
+	- after the camera position has been updated, use the cam's position change
+	  to update the scroll_x and scroll_y registers, to have the background tiles
+	  scroll as expected.
+
+	- finally, based on the current scroll_x and scroll_y values, check which
+	  rows and columns in the tile map are actually on the screen. If there's
+	  a change in this, then update the tile map, such that there's always a
+	  one-tile wide buffer around the visible part of the screen. So that we always
+	  write the correct data into an area that's (at least) one tile wider in
+	  all 4 directions than the area shown on the screen.
+
+
+Leftmost tile column on the screen: scroll_x / 8
+Rightmost tile column on the screen: (scroll_x + 160) / 8
+Topmost tile row on the screen: scroll_y / 8
+Bottommost tile row on the screen: (scroll_y + 144) / 8
+
+	=> these should be fine to wrap around.
+
+Camera position shall always correspond to the top left of the screen.
+So then:
+			screen position = world position - camera position
+
+... maybe that's a start?

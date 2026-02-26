@@ -1,0 +1,46 @@
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TODO - 26 February, 2026
+
+o tackle scrolling and camera things, conceptually
+- play around with 16 bit positions
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TODO - 25 February, 2026
+
+o collision detection w/ background tiles
+	o go thru "GetTileByPixel" and comment it so it's clear what / how it does
+	o detect collisions
+	o calculate valid out-of-wall projection, use that to move
+
+o jumping & gravity
+	o well, how to do jumping?, the simplest way?
+	o so long as some button is pressed, set vertical velocity
+	  to some value
+	o then, keep track of ground / air state
+	o then, if in the air, allow upwards acceleration for some
+	  time (but perhaps dissipating acceleration)
+	o after jump time is over, and in the air, apply gravity
+	  
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TODO - 24 February, 2026
+
+o set up git repo
+o push it to GitHub
+o create readme
+o set up main.asm
+	o initialize screen and stuff
+	o define tiles:
+		o 0: empty tile
+		o 1: full with color 1
+		o 2: full with color 2
+		o 3: full with color 3
+	
+	o define tilemap, but procedurally:
+		o top row, bottom row, edges on the
+		  first screen should all have tile 1,
+		  otherwise empty.
+
+o add a 2x1 sprite (2 rows, 1 col)
+o move it around using subpixel velocity; horizontally
+
