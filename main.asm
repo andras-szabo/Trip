@@ -3,8 +3,8 @@ INCLUDE "utility.inc"
 INCLUDE "input.inc"
 
 DEF SUBPIXELS_PER_PIXEL EQU 16
-DEF MAX_TRACER_SPEED_SPF EQU 112
-DEF DEFAULT_ACCELERATION EQU 12
+DEF MAX_TRACER_SPEED_SPF EQU 64
+DEF DEFAULT_ACCELERATION EQU 8
 DEF DEFAULT_FRICTION EQU 8
 DEF DEFAULT_JUMP_STRENGTH EQU 64
 DEF DEFAULT_GRAVITY EQU 16
@@ -62,12 +62,125 @@ Main:
 	ld	e, a
 	call CheckWallCollisions	; d now contains _updated_ horizontal position delta
 
+	; Update world positions
+	call UpdateWorldPosition
+
 	; Actually update OAM -------------------------------------------------------
-	call UpdateOAM
+	call UpdateOAMFromWorldPosition
 
 	jp 	Main
 
 ;---------------------------------------------------------------------------------
+
+;@param hl: address of a 16-bit variable
+;@param bc: delta to add
+AddWord:
+	; Load the word into de
+	ld	e, [hl]
+	inc	hl
+	ld	d, [hl]
+
+	dec hl
+	push hl
+
+	ld	h, d
+	ld	l, e
+	add	hl, bc
+	ld	b, h
+	ld	c, l
+	pop	hl
+
+	ld	[hl], c
+	inc	hl
+	ld	[hl], b
+
+	ret
+
+
+;@param d: horizontal position delta, pixels
+;@param e: vertical position delta, pixels
+UpdateWorldPosition:
+
+	ld	hl, wWorldPosX
+	ld	c, d				; load "d" into bc, sign extended
+	ld	b, 0				; this will come in handy later
+	bit 7, c
+	jr	z, .load_01_done
+	dec	b					; 0 - 1 = $FF
+.load_01_done:
+	push de
+	call AddWord
+	pop	 de
+
+	ld	hl, wWorldPosY		; same thing for "e"
+	ld	c, e
+	ld	b, 0
+	bit	7, c
+	jr	z, .load_02_done
+	dec b
+.load_02_done:
+	call AddWord
+
+	ret
+
+UpdateOAMFromWorldPosition:
+	; I think that if we can guarantee that the player will always be
+	; on screen, and thus the difference between her and the camera
+	; will always be fewer than 160 / 144 pixels, then we can actually
+	; ignore the high byte. But maybe it's an optimization.
+
+	ld	hl, wWorldPosX
+	call LoadWord			; world pos X is now in bc
+	
+	ld	d, b				; copy it into de
+	ld	e, c
+
+	ld	hl, wCamPosX
+	call LoadWord			; cam pos X is now in bc
+
+	; DE = DE - BC
+	
+	ld	a, c
+	sub	e
+	ld	c, a
+
+	ld	a, b
+	sbc	d
+	ld	b, a
+
+	; de now contains the pixel position of the player, we now just have to add 8,
+	; so we have something to store in the OAM.
+
+	ld	a, e	; let's just ignore "d"
+	add 8
+	ld	[STARTOF(OAM) + 0 + 1], a		; Top sprite, x position
+	ld	[STARTOF(OAM) + 4 + 1], a		; Bottom sprite, x position
+
+	ld	hl, wWorldPosY
+	call LoadWord
+	ld	d, b
+	ld	e, c
+	ld	hl, wCamPosY
+	call LoadWord
+
+	; DE = DE - BC again
+	ld	a, c
+	sub e
+	ld	c, a
+
+	ld	a, b
+	sbc	d
+	ld	b, a
+
+	; de now contains the pixel position of the player
+	ld	a, e	; ignoring the high byte
+	add 16
+	ld	[STARTOF(OAM) + 0 + 0], a		; Top sprite, y
+	add 8
+	ld	[STARTOF(OAM) + 4 + 0], a		; Bottom sprite, y
+
+	ret
+
 ;@param d: horizontal position delta, in pixels
 ;@param e: vertical position delta, in pixels
 UpdateOAM:
@@ -105,6 +218,7 @@ UpdateVerticalAcceleration:
 	ld	e, a
 
 	; Check if "a" is pressed
+	; TODO clean this up
 	ld	a, 0;[wCurKeys]
 	ld	b, a
 	ld	a, [wNewKeys]
@@ -231,6 +345,9 @@ CheckWallCollisions:
 
 	; TODO: This should not actually read from STARTOF(OAM),
 	; 		but instead use the WRAM copies
+
+	; ... and we should update this so it can work w/ 16-bit
+	; positional values.
 
 	; Let's do vertical checks first.
 	; Check for bottom
@@ -430,19 +547,15 @@ ClearOAM:
 
 InitTracerSprite:
 	; Top half
+	xor	a
 	ld	hl, STARTOF(OAM)	; expecting Tracer's top sprite data to be at the start of OAM
-	ld	a, 120 + 16			; y coordinate
 	ld	[hli], a
-	ld	a, 16 + 8			; x coordinate
 	ld	[hli], a
-	xor	a					; tile ID
 	ld	[hli], a
 	ld	[hli], a
 
 	; Bottom half
-	ld	a, 120 + 16 + 8
 	ld	[hli], a
-	ld	a, 16 + 8
 	ld	[hli], a
 	ld	a, 1
 	ld	[hli], a
@@ -562,6 +675,24 @@ InitGlobals:
 	ld	a, DEFAULT_GRAVITY
 	ld	[wGravity], a
 
+	; Consider using macros instead
+
+	ld	bc, 16
+	ld	hl, wWorldPosX
+	call StoreWord
+
+	ld	bc, 120
+	ld	hl, wWorldPosY
+	call StoreWord
+
+	ld	bc, 8
+	ld	hl, wCamPosX
+	call StoreWord
+
+	ld	bc, 16
+	ld	hl, wCamPosY
+	call StoreWord
+
 	ret
 
 Init:
@@ -582,6 +713,11 @@ wSpeedPerFrameX:	db		; in subpixels (16 subpixel = 1 pixel)
 wSpeedPerFrameY:	db
 wCurrentSubPixelX:	db
 wCurrentSubPixelY:	db
+
+wWorldPosX:			dw
+wWorldPosY:			dw
+wCamPosX:			dw
+wCamPosY:			dw
 
 wAcceleration:		db
 wJumpStrength:		db		; starting vertical acceleration, sp/frame

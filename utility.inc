@@ -6,26 +6,44 @@ SECTION "Utilities", ROM0
 MemCopy:
 	ld 	a, b
 	or 	a, c
-	jr 	z, MemCopyEnd
+	ret	z
 
 	ld 	a, [de]
 	ld 	[hli], a
 	inc de
 	dec bc
 	jr 	MemCopy
-MemCopyEnd:
-	ret
 
 MemClear:
 	ld	a, b
 	or	a, c
-	jr	z, MemClearEnd
+	ret	z
 
 	xor	a
 	ld	[hli], a
 	dec	bc
 	jr	MemClear
-MemClearEnd:
+
+;Store some value (bc) into the thing
+;pointed to by hl.
+;
+;@param bc: the value
+;@param hl: the address of the variable
+StoreWord:
+	ld	[hl], c
+	inc	hl
+	ld	[hl], b
+	ret
+
+;Load some value from the thing pointed
+;to by hl into bc. 
+;
+;@param hl: the address of the variable
+;@return bc: the value
+LoadWord:
+	ld	c, [hl]
+	inc	hl
+	ld	b, [hl]
 	ret
 
 ;@param hl: address of value to cap

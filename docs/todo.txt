@@ -1,8 +1,13 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TODO - 28 February, 2026
+
+o fix position update
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 TODO - 26 February, 2026
 
 o tackle scrolling and camera things, conceptually
-- play around with 16 bit positions
+o play around with 16 bit positions
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 TODO - 25 February, 2026
