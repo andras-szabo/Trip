@@ -60,12 +60,18 @@ Main:
 	ld	d, a
 	ldh a, [wCurrentPosDeltaY]
 	ld	e, a
-	call CheckWallCollisions	; d now contains _updated_ horizontal position delta
+
+	; CheckWallCollisions works with OAM data;
+	; so we can't use that during PPU update.
+	; might we get around by storing it in shadowOAM?
+	; I think we should.
+	call CheckWallCollisions	; d and e now contain _updated_ horizontal position delta
 
 	; Update world positions
 	call UpdateWorldPosition
 
 	; Actually update OAM -------------------------------------------------------
+	;	 -- this should just consist of copying the data into OAM quick snap.
 	call UpdateOAMFromWorldPosition
 
 	jp 	Main
