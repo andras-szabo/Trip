@@ -2,6 +2,8 @@ INCLUDE "hardware.inc"
 INCLUDE "utility.inc"
 INCLUDE "input.inc"
 
+INCLUDE "camera.asm"
+
 DEF SUBPIXELS_PER_PIXEL EQU 16
 DEF MAX_TRACER_SPEED_SPF EQU 64
 DEF DEFAULT_ACCELERATION EQU 8
@@ -719,8 +721,6 @@ wCurrentSubPixelY:	db
 
 wWorldPosX:			dw
 wWorldPosY:			dw
-wCamPosX:			dw
-wCamPosY:			dw
 
 wAcceleration:		db
 wJumpStrength:		db		; starting vertical acceleration, sp/frame
