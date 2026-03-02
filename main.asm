@@ -102,11 +102,9 @@ AddWord:
 
 	ret
 
-
 ;@param d: horizontal position delta, pixels
 ;@param e: vertical position delta, pixels
 UpdateWorldPosition:
-
 	ld	hl, wWorldPosX
 	ld	c, d				; load "d" into bc, sign extended
 	ld	b, 0				; this will come in handy later
@@ -126,7 +124,6 @@ UpdateWorldPosition:
 	dec b
 .load_02_done:
 	call AddWord
-
 	ret
 
 UpdateOAMFromWorldPosition:
