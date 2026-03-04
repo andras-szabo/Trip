@@ -18,6 +18,41 @@ SECTION "CameraVariables", WRAM0
 
 SECTION "CameraCode", ROM0
 
+; Compare two signed 16-bit values and set flags like CP:
+; carry if left < right, zero if left == right, else left > right.
+; Clobbers: a
+MACRO SIGNED_CMP16
+    ld  a, \1
+    xor \3
+    bit 7, a
+    jr  z, .sameSign\@
+
+    ; If signs differ, sign bit alone determines ordering.
+    bit 7, \1
+    jr  z, .leftPositive\@
+
+    ; left negative, right positive => left < right (set carry)
+    ld  a, 0
+    cp  1
+    jr  .done\@
+
+.leftPositive\@:
+    ; left positive, right negative => left > right (clear carry, clear zero)
+    ld  a, 1
+    cp  0
+    jr  .done\@
+
+.sameSign\@:
+    ; Same sign: regular unsigned bytewise compare is valid.
+    ld  a, \1
+    cp  \3
+    jr  nz, .done\@
+    ld  a, \2
+    cp  \4
+
+.done\@:
+ENDM
+
 ;@param bc: Camera's initial position X
 ;@param de: Camera's initial position Y
 Camera_Init_Position:
@@ -132,22 +167,9 @@ Camera_Update:
 
     pop bc                      ; bc now again has player's world position X
     ; Signed 16-bit compare: frame-left (hl) vs player X (bc)
-    ; If signs differ, negative is smaller. If same sign, unsigned byte compare is valid.
-    ld  a, h
-    xor b
-    bit 7, a
-    jr  z, .FrameLeftSameSign
-    bit 7, h
-    jr  z, .AdjustToFrameLeft    ; frame-left positive, player negative -> frame-left > player
-    jr  .FrameLeftOK             ; frame-left negative, player positive -> frame-left < player
-.FrameLeftSameSign:
-    ld  a, h                    ; first check the high byte
-    cp  b                       ; set c, if player's world position X is larger than the frame left border (high byte)
+    SIGNED_CMP16 h, l, b, c
     jr  c, .FrameLeftOK         ; if b's high byte is larger, the frame's left side is in the correct place.
     jr  nz, .AdjustToFrameLeft  ; if b's high byte is smaller, (so the player is to the left of the left frame, we'll need to adjust)
-    ld  a, l                    ; if undecided, let's look at the low byte
-    cp  c
-    jr  c, .FrameLeftOK         ; if b's low byte is larger -> that's fine, b/c we know the high byte is the same.
     jr  z, .FrameLeftOK         ; if the low byte is the same, player is just on the left frame boundary, let's say that's OK
                                 ; otherwise (high bytes are equal, but low bytes, player's world pos X is smaller than c:
 .AdjustToFrameLeft:
@@ -198,22 +220,9 @@ Camera_Update:
     pop bc
 
     ; Signed 16-bit compare: frame-right (hl) vs player X (bc)
-    ; We adjust right when frame-right < player.
-    ld  a, h
-    xor b
-    bit 7, a
-    jr  z, .FrameRightSameSign
-    bit 7, h
-    jr  nz, .AdjustToFrameRight  ; frame-right negative, player positive -> frame-right < player
-    jr  .FrameRightOK            ; frame-right positive, player negative -> frame-right > player
-.FrameRightSameSign:
-    ld  a, h                    ; first check the high byte
-    cp  b                       ; set c, if the player's world position X is larger than the frame right border (high byte)
+    SIGNED_CMP16 h, l, b, c
     jr  c, .AdjustToFrameRight  ; if carry, we need to adjust to the frame right
     jr  nz, .FrameRightOK       ; if not carry, and not Z, then c must be smaller, so we're good, so far as the right side is concerned
-    ld  a, l                    ; otherwise, let's look at the low byte
-    cp  c
-    jr  c, .AdjustToFrameRight  ; if the player position is larger, we'll have to adjust
     jr  nz, .FrameRightOK       ; if not carry, and not Z, then c must be smaller, so we're good
 
 .AdjustToFrameRight:
@@ -258,22 +267,9 @@ Camera_Update:
 
     pop de                      ; de now again has player's world position Y
     ; Signed 16-bit compare: frame-top (hl) vs player Y (de)
-    ; We adjust top when frame-top > player.
-    ld  a, h
-    xor d
-    bit 7, a
-    jr  z, .FrameTopSameSign
-    bit 7, h
-    jr  z, .AdjustToFrameTop     ; frame-top positive, player negative -> frame-top > player
-    jr  .FrameTopOK              ; frame-top negative, player positive -> frame-top < player
-.FrameTopSameSign:
-    ld  a, h                    ; first check the high byte
-    cp  d                       ; compare frame top (h) with player Y high (d)
+    SIGNED_CMP16 h, l, d, e
     jr  c, .FrameTopOK          ; frame top < player Y -> player is below top boundary
     jr  nz, .AdjustToFrameTop   ; frame top > player Y -> player is above top boundary
-    ld  a, l                    ; if equal, compare low bytes
-    cp  e
-    jr  c, .FrameTopOK          ; frame top low < player low -> player is below top boundary
     jr  z, .FrameTopOK          ; exactly on boundary is also OK
 
 .AdjustToFrameTop:
@@ -327,22 +323,9 @@ Camera_Update:
 
     pop de
     ; Signed 16-bit compare: frame-bottom (hl) vs player Y (de)
-    ; We adjust bottom when frame-bottom < player.
-    ld  a, h
-    xor d
-    bit 7, a
-    jr  z, .FrameBottomSameSign
-    bit 7, h
-    jr  nz, .AdjustToFrameBottom ; frame-bottom negative, player positive -> frame-bottom < player
-    jr  .VerticalDone            ; frame-bottom positive, player negative -> frame-bottom > player
-.FrameBottomSameSign:
-    ld  a, h                    ; compare frame bottom high with player high
-    cp  d
+    SIGNED_CMP16 h, l, d, e
     jr  c, .AdjustToFrameBottom ; frame bottom < player Y -> player is below bottom boundary
     jr  nz, .VerticalDone       ; frame bottom > player Y -> inside boundary
-    ld  a, l                    ; high bytes are equal, compare low bytes
-    cp  e
-    jr  c, .AdjustToFrameBottom ; frame bottom low < player low -> below boundary
     jr  z, .VerticalDone        ; exactly on boundary is OK
 
 .AdjustToFrameBottom:
