@@ -131,6 +131,16 @@ Camera_Update:
     ;      
 
     pop bc                      ; bc now again has player's world position X
+    ; Signed 16-bit compare: frame-left (hl) vs player X (bc)
+    ; If signs differ, negative is smaller. If same sign, unsigned byte compare is valid.
+    ld  a, h
+    xor b
+    bit 7, a
+    jr  z, .FrameLeftSameSign
+    bit 7, h
+    jr  z, .AdjustToFrameLeft    ; frame-left positive, player negative -> frame-left > player
+    jr  .FrameLeftOK             ; frame-left negative, player positive -> frame-left < player
+.FrameLeftSameSign:
     ld  a, h                    ; first check the high byte
     cp  b                       ; set c, if player's world position X is larger than the frame left border (high byte)
     jr  c, .FrameLeftOK         ; if b's high byte is larger, the frame's left side is in the correct place.
@@ -187,6 +197,16 @@ Camera_Update:
 
     pop bc
 
+    ; Signed 16-bit compare: frame-right (hl) vs player X (bc)
+    ; We adjust right when frame-right < player.
+    ld  a, h
+    xor b
+    bit 7, a
+    jr  z, .FrameRightSameSign
+    bit 7, h
+    jr  nz, .AdjustToFrameRight  ; frame-right negative, player positive -> frame-right < player
+    jr  .FrameRightOK            ; frame-right positive, player negative -> frame-right > player
+.FrameRightSameSign:
     ld  a, h                    ; first check the high byte
     cp  b                       ; set c, if the player's world position X is larger than the frame right border (high byte)
     jr  c, .AdjustToFrameRight  ; if carry, we need to adjust to the frame right
@@ -194,7 +214,7 @@ Camera_Update:
     ld  a, l                    ; otherwise, let's look at the low byte
     cp  c
     jr  c, .AdjustToFrameRight  ; if the player position is larger, we'll have to adjust
-    jr  z, .FrameRightOK        ; if the same, we'll accept it as OK; otherwise we'll have to adjust
+    jr  nz, .FrameRightOK       ; if not carry, and not Z, then c must be smaller, so we're good
 
 .AdjustToFrameRight:
     ld  h, b
@@ -210,10 +230,6 @@ Camera_Update:
     ld  b, $FF                  ; if set, sign extend with $FF
 .signExtendRight:
     add hl, bc                  ; hl now has player's world position X - right delta
-    pop bc
-
-.FrameRightOK:
-    push bc
 
     ld  b, h
     ld  c, l
@@ -223,7 +239,7 @@ Camera_Update:
     ld  [hl], b                 ; then store high byte
 
     pop bc
-
+.FrameRightOK:
 .AdjustVerticalPosition:
     ; Check frame top using current camera position + top offset.
     ; If player is above the top boundary, move camera up.
@@ -241,6 +257,16 @@ Camera_Update:
     add hl, de                  ; hl now has cam pos + top offset
 
     pop de                      ; de now again has player's world position Y
+    ; Signed 16-bit compare: frame-top (hl) vs player Y (de)
+    ; We adjust top when frame-top > player.
+    ld  a, h
+    xor d
+    bit 7, a
+    jr  z, .FrameTopSameSign
+    bit 7, h
+    jr  z, .AdjustToFrameTop     ; frame-top positive, player negative -> frame-top > player
+    jr  .FrameTopOK              ; frame-top negative, player positive -> frame-top < player
+.FrameTopSameSign:
     ld  a, h                    ; first check the high byte
     cp  d                       ; compare frame top (h) with player Y high (d)
     jr  c, .FrameTopOK          ; frame top < player Y -> player is below top boundary
@@ -300,6 +326,16 @@ Camera_Update:
     add hl, de                  ; hl now has cam pos + bottom offset
 
     pop de
+    ; Signed 16-bit compare: frame-bottom (hl) vs player Y (de)
+    ; We adjust bottom when frame-bottom < player.
+    ld  a, h
+    xor d
+    bit 7, a
+    jr  z, .FrameBottomSameSign
+    bit 7, h
+    jr  nz, .AdjustToFrameBottom ; frame-bottom negative, player positive -> frame-bottom < player
+    jr  .VerticalDone            ; frame-bottom positive, player negative -> frame-bottom > player
+.FrameBottomSameSign:
     ld  a, h                    ; compare frame bottom high with player high
     cp  d
     jr  c, .AdjustToFrameBottom ; frame bottom < player Y -> player is below bottom boundary

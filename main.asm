@@ -9,7 +9,7 @@ DEF MAX_TRACER_SPEED_SPF EQU 64
 DEF DEFAULT_ACCELERATION EQU 8
 DEF DEFAULT_FRICTION EQU 8
 DEF DEFAULT_JUMP_STRENGTH EQU 64
-DEF DEFAULT_GRAVITY EQU 16
+DEF DEFAULT_GRAVITY EQU 0				; for testing
 
 DEF WALL_TILE EQU 1
 
@@ -148,24 +148,27 @@ UpdateOAMFromWorldPosition:
 	; will always be fewer than 160 / 144 pixels, then we can actually
 	; ignore the high byte. But maybe it's an optimization.
 
-	ld	hl, wWorldPosX
-	call LoadWord			; world pos X is now in bc
 	
-	ld	d, b				; copy it into de
-	ld	e, c
+	ld	a, [wWorldPosX]
+	ld	e, a
+	ld	a, [wWorldPosX + 1]
+	ld	d, a					; world pos X is now in de
 
-	ld	hl, wCamPosX
-	call LoadWord			; cam pos X is now in bc
-
-	; DE = DE - BC
-	
-	ld	a, c
-	sub	e
+	ld	a, [wCamPosX]
 	ld	c, a
-
-	ld	a, b
-	sbc	d
+	ld	a, [wCamPosX + 1]
 	ld	b, a
+
+	; DE = DE - BC?
+
+	ld	a, e
+	sub	c			;	a = e - c
+	ld	e, a		;	e = e - c	
+
+	ld	a, d
+	sbc	b			;	a = d - b
+	ld	d, a		;	d = d - b
+
 
 	; de now contains the pixel position of the player, we now just have to add 8,
 	; so we have something to store in the OAM.
@@ -175,21 +178,24 @@ UpdateOAMFromWorldPosition:
 	ld	[STARTOF(OAM) + 0 + 1], a		; Top sprite, x position
 	ld	[STARTOF(OAM) + 4 + 1], a		; Bottom sprite, x position
 
-	ld	hl, wWorldPosY
-	call LoadWord
-	ld	d, b
-	ld	e, c
-	ld	hl, wCamPosY
-	call LoadWord
+	ld	a, [wWorldPosY]
+	ld	e, a
+	ld	a, [wWorldPosY + 1]
+	ld	d, a
+
+	ld	a, [wCamPosY]
+	ld	c, a
+	ld	a, [wCamPosY + 1]
+	ld	b, a
 
 	; DE = DE - BC again
-	ld	a, c
-	sub e
-	ld	c, a
+	ld	a, e
+	sub	c
+	ld	e, a
 
-	ld	a, b
-	sbc	d
-	ld	b, a
+	ld	a, d
+	sbc	b
+	ld	d, a
 
 	; de now contains the pixel position of the player
 	ld	a, e	; ignoring the high byte
