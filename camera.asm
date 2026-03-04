@@ -22,28 +22,24 @@ SECTION "CameraCode", ROM0
 ;@param de: Camera's initial position Y
 Camera_Init_Position:
     ld  hl, wCamPosX
-    ld  a, b
-    ld  [hli], a
-    ld  a, c
-    ld  [hl], a
+    ld  [hl], c         ; lower byte first
+    inc hl
+    ld  [hl], b         ; high byte second
 
     ld  hl, wCamPosXPrev
-    ld  a, b
-    ld  [hli], a
-    ld  a, c
-    ld  [hl], a
-
+    ld  [hl], c
+    inc hl
+    ld  [hl], b
+    
     ld  hl, wCamPosY
-    ld  a, d
-    ld  [hli], a
-    ld  a, e
-    ld  [hl], a
+    ld  [hl], e
+    inc hl
+    ld  [hl], d
 
     ld  hl, wCamPosYPrev
-    ld  a, d
-    ld  [hli], a
-    ld  a, e
-    ld  [hl], a
+    ld  [hl], e
+    inc hl
+    ld  [hl], d
 
     ret
 
@@ -113,10 +109,10 @@ Camera_Update:
     ld  a, [wFrameLeftDelta]
     ld  c, a
     ld  b, 0
-    ld  a, [wCamPosX]
-    ld  h, a
-    ld  a, [wCamPosX + 1]
+    ld  a, [wCamPosX]           ; low byte into l
     ld  l, a
+    ld  a, [wCamPosX + 1]       ; high byte into h
+    ld  h, a
     add hl, bc                  ; hl now has cam pos + left offset
 
     ; Is there a way we can do this comparison without jumps?
@@ -154,15 +150,25 @@ Camera_Update:
     push bc
 
     ld  c, a                    ; load "a" into the low byte of bc
-    ld  b, $FF                  ; sign extend the high byte of b (we are sure that it will be negative)
+    ld  b, $00                  ; assume positive result
+    bit 7, c                    ; check if bit 7 is set (negative)
+    jr  z, .signExtendLeft      ; if clear, b = $00 is correct
+    ld  b, $FF                  ; if set, sign extend with $FF
+.signExtendLeft:
     add hl, bc                  ; subtract [wFrameLeftDelta] minus player's world position X to find the new cam pos.
+
+    ; hl now contains the new camera position, so set it
+    ; we'll need hl for the addressing, so use bc as temp storage
+
+    ld  b, h
+    ld  c, l
+
+    ld  hl, wCamPosX
+    ld  [hl], c                 ; store low byte first
+    inc hl
+    ld  [hl], b                 ; store high byte second
     
     pop bc
-    
-    ld  a, [hli]
-    ld  [wCamPosX], a
-    ld  a, [hl]
-    ld  [wCamPosX + 1], a
     jr  .AdjustVerticalPosition
 
 .FrameLeftOK:                   ; if frame left is OK, let's check if frame right is OK too
@@ -173,13 +179,14 @@ Camera_Update:
     ld  b, 0
 
     ld  a, [wCamPosX]
-    ld  h, a
-    ld  a, [wCamPosX + 1]
     ld  l, a
+    ld  a, [wCamPosX + 1]
+    ld  h, a
 
     add hl, bc                  ; hl now has cam pos + right offset
 
     pop bc
+
     ld  a, h                    ; first check the high byte
     cp  b                       ; set c, if the player's world position X is larger than the frame right border (high byte)
     jr  c, .AdjustToFrameRight  ; if carry, we need to adjust to the frame right
@@ -197,15 +204,25 @@ Camera_Update:
     inc a
     push bc
     ld  c, a
-    ld  b, $FF
+    ld  b, $00                  ; assume positive result
+    bit 7, c                    ; check if bit 7 is set (negative)
+    jr  z, .signExtendRight     ; if clear, b = $00 is correct
+    ld  b, $FF                  ; if set, sign extend with $FF
+.signExtendRight:
     add hl, bc                  ; hl now has player's world position X - right delta
     pop bc
 
 .FrameRightOK:
-    ld  a, [hli]
-    ld  [wCamPosX], a
-    ld  a, [hl]
-    ld  [wCamPosX + 1], a
+    push bc
+
+    ld  b, h
+    ld  c, l
+    ld  hl, wCamPosX
+    ld  [hl], c                 ; store low byte first
+    inc hl
+    ld  [hl], b                 ; then store high byte
+
+    pop bc
 
 .AdjustVerticalPosition:
     ; Check frame top using current camera position + top offset.
@@ -217,9 +234,9 @@ Camera_Update:
     ld  d, 0
 
     ld  a, [wCamPosY]
-    ld  h, a
-    ld  a, [wCamPosY + 1]
     ld  l, a
+    ld  a, [wCamPosY + 1]
+    ld  h, a
 
     add hl, de                  ; hl now has cam pos + top offset
 
@@ -243,15 +260,27 @@ Camera_Update:
     push de
 
     ld  e, a                    ; low byte of -(top delta)
-    ld  d, $FF                  ; sign extend negative value
+    ld  d, $00                  ; assume positive result
+    bit 7, e                    ; check if bit 7 is set (negative)
+    jr  z, .signExtendTop       ; if clear, d = $00 is correct
+    ld  d, $FF                  ; if set, sign extend with $FF
+.signExtendTop:
     add hl, de                  ; hl = player Y - top delta
 
     pop de
 
-    ld  a, [hli]
-    ld  [wCamPosY], a
-    ld  a, [hl]
-    ld  [wCamPosY + 1], a
+    push bc
+    
+    ld  b, h
+    ld  c, l
+
+    ld  hl, wCamPosY
+    ld  [hl], c
+    inc hl
+    ld  [hl], b
+
+    pop bc
+
     jr  .VerticalDone
 
 .FrameTopOK:
@@ -264,9 +293,9 @@ Camera_Update:
     ld  d, 0
 
     ld  a, [wCamPosY]
-    ld  h, a
-    ld  a, [wCamPosY + 1]
     ld  l, a
+    ld  a, [wCamPosY + 1]
+    ld  h, a
 
     add hl, de                  ; hl now has cam pos + bottom offset
 
@@ -289,14 +318,24 @@ Camera_Update:
 
     push de
     ld  e, a
-    ld  d, $FF
+    ld  d, $00                  ; assume positive result
+    bit 7, e                    ; check if bit 7 is set (negative)
+    jr  z, .signExtendBottom    ; if clear, d = $00 is correct
+    ld  d, $FF                  ; if set, sign extend with $FF
+.signExtendBottom:
     add hl, de                  ; hl = player Y - bottom delta
     pop de
 
-    ld  a, [hli]
-    ld  [wCamPosY], a
-    ld  a, [hl]
-    ld  [wCamPosY + 1], a
+    push bc
+    ld  b, h
+    ld  c, l
+
+    ld  hl, wCamPosY
+    ld  [hl], c
+    inc hl
+    ld  [hl], b
+
+    pop bc
 
 .VerticalDone:
 

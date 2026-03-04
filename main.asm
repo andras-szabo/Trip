@@ -72,6 +72,20 @@ Main:
 	; Update world positions
 	call UpdateWorldPosition
 
+	; Update camera position
+
+	ld	a, [wWorldPosY]
+	ld	e, a
+	ld	a, [wWorldPosY + 1]
+	ld	d, a
+
+	ld	a, [wWorldPosX]
+	ld	c, a
+	ld	a, [wWorldPosX + 1]
+	ld	b, a
+	
+	call Camera_Update
+
 	; Actually update OAM -------------------------------------------------------
 	;	 -- this should just consist of copying the data into OAM quick snap.
 	call UpdateOAMFromWorldPosition
@@ -690,13 +704,23 @@ InitGlobals:
 	ld	hl, wWorldPosY
 	call StoreWord
 
-	ld	bc, 8
-	ld	hl, wCamPosX
-	call StoreWord
+	ld	bc, 0
+	ld	de, 0
+	call Camera_Init_Position
 
-	ld	bc, 16
-	ld	hl, wCamPosY
-	call StoreWord
+	; So we have a 160 x 144 pixel screen;
+	; or 20 x 18 tiles
+	; let's use the following borders: ("frame" or "camera dead zone")
+	; top: 8 tiles = 64 pixels
+	; bottom: 4 tiles = 32 pixels
+	; left: 4 tiles = 32 pixels
+	; right: 8 tiles = 64 pixels     - just to get started
+
+	ld	b, 32				; frame left delta
+	ld	c, 160 - 32 - 64	; deadzone width
+	ld	d, 64				; frame top delta
+	ld	e, 144 - 64 - 32	; deadzone height
+	call Camera_Init_Deadzone
 
 	ret
 
