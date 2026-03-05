@@ -9,12 +9,12 @@ SECTION "CameraVariables", WRAM0
     wDesiredPosY: dw        ; The position the camera is trying to reach (world coords)
 
     wFrameLeftDelta: db     ; Distance from cam pos to the left of the frame
-    wFrameRightDelta: db    ; Distance from cam pos to the right of the frame
-    deadZoneWidth: db       ; The ideal width of the frame; this should not change even temporarily
+    wFrameRightDelta: db    ; Distance from the right side of the screen to the right side of the frame; must fit into 1 byte!
+    wDeadZoneWidth: dw       ; horizontal deadzone can technically be 160 pixels; vertical 144, so...
 
     wFrameTopDelta: db      ; Distance from cam pos to the top of the frame
     wFrameBottomDelta: db   ; Distance from cam pos to the bottom of the frame
-    deadZoneHeight: db      ; The ideal height of the frame; this should not change even temporarily
+    wDeadZoneHeight: dw      ; The ideal height of the frame; this should not change even temporarily
 
 SECTION "CameraCode", ROM0
 
@@ -79,33 +79,70 @@ Camera_Init_Position:
     ret
 
 ;@param b: frameLeftDelta
-;@param c: deadzone width
+;@param c: frameRightDelta 
 ;@param d: frameTopDelta
-;@param e: deadzone height
+;@param e: frameBottomDelta
 Camera_Init_Deadzone:
+    
+    ; Init wFrameLeftDelta, wFrameRightDelta 
     ld  hl, wFrameLeftDelta
     ld  [hl], b
-    ld  hl, deadZoneWidth
+    ld  hl, wFrameRightDelta
     ld  [hl], c
 
+    ; wDeadZoneWidth = 160 - wFrameLeftDelta - wFrameRightDelta
+    ld  hl, 160
     ld  a, [wFrameLeftDelta]
-    ld  b, a
-    ld  a, [deadZoneWidth]
-    add b
-    ld  hl, wFrameRightDelta
-    ld  [hl], a
+    cpl
+    inc a
+    ld  c, a
+    ld  b, $FF  ; sign extend
+    add hl, bc  ; hl = 160 - wFrameLeftDelta
 
+    ld  a, [wFrameRightDelta]
+    cpl
+    inc a
+    ld  c, a
+    ld  b, $FF  ; sign extend
+    add hl, bc  ; hl = 160 - wFrameLeftDelta - wFrameRightDelta
+
+    ld  b, h
+    ld  c, l
+
+    ld  hl, wDeadZoneWidth
+    ld  [hl], c
+    inc hl
+    ld  [hl], b
+
+    ; Init wFrameTopDelta, wFrameBottomDelta
     ld  hl, wFrameTopDelta
     ld  [hl], d
-    ld  hl, deadZoneHeight
+    ld  hl, wFrameBottomDelta
     ld  [hl], e
 
+    ; vertical deadzone = 144 - wFramwTopDelta - wFrameBottomDelta
+    ld  hl, 144
     ld  a, [wFrameTopDelta]
-    ld  b, a
-    ld  a, [deadZoneHeight]
-    add b
-    ld  hl, wFrameBottomDelta
-    ld  [hl], a
+    cpl
+    inc a
+    ld  c, a
+    ld  b, $FF
+    add hl, bc  ; hl = 144 - wFrameTopDelta
+
+    ld  a, [wFrameBottomDelta]
+    cpl
+    inc a
+    ld  c, a
+    ld  b, $FF
+    add hl, bc
+
+    ld  b, h
+    ld  c, l
+
+    ld  hl, wDeadZoneHeight
+    ld  [hl], c
+    inc hl
+    ld  [hl], b
 
     ret
 
@@ -150,22 +187,8 @@ Camera_Update:
     ld  h, a
     add hl, bc                  ; hl now has cam pos + left offset
 
-    ; Is there a way we can do this comparison without jumps?
-    ; eg:   - compare high bytes
-    ;           - if b larger           -> finish, we're good.
-    ;           - if b smaller (nz)     -> we'll need to adjust
-    ;           - otherwise, chek low byte
-    ;               - if c larger       -> finish, we're good
-    ;               - if b smaller (nz) -> we'll need to adjust
-    ;       
-    ;       .We'll need to adjust based on left
-    ;           - adjust (desired) cam position x to be player position - left delta
-    ;
-    ;       .We're good:
-    ;           - check frame right 
-    ;      
-
     pop bc                      ; bc now again has player's world position X
+
     ; Signed 16-bit compare: frame-left (hl) vs player X (bc)
     SIGNED_CMP16 h, l, b, c
     jr  c, .FrameLeftOK         ; if b's high byte is larger, the frame's left side is in the correct place.
@@ -206,39 +229,50 @@ Camera_Update:
 .FrameLeftOK:                   ; if frame left is OK, let's check if frame right is OK too
     push bc                     ; save "player's position X as bc" 
 
-    ld  a, [wFrameRightDelta]
-    ld  c, a
-    ld  b, 0
-
+    ; right offset = left frame delta + deadzoneWidth
     ld  a, [wCamPosX]
     ld  l, a
     ld  a, [wCamPosX + 1]
-    ld  h, a
+    ld  h, a                   ; hl = wCamPosX
 
-    add hl, bc                  ; hl now has cam pos + right offset
+    ld  a, [wFrameLeftDelta]
+    ld  c, a
+    ld  b, 0
+
+    add hl, bc      ; hl = wCamPosX + wFrameLeftDelta
+
+    ld  a, [wDeadZoneWidth]
+    ld  c, a
+    ld  a, [wDeadZoneWidth + 1]
+    ld  b, a        ; bc = deadZoneWidth
+
+    add hl, bc      ; hl = wCamPosX + wFrameLeftDelta + wDeadZoneWidth
 
     pop bc
 
     ; Signed 16-bit compare: frame-right (hl) vs player X (bc)
     SIGNED_CMP16 h, l, b, c
     jr  c, .AdjustToFrameRight  ; if carry, we need to adjust to the frame right
-    jr  nz, .FrameRightOK       ; if not carry, and not Z, then c must be smaller, so we're good, so far as the right side is concerned
-    jr  nz, .FrameRightOK       ; if not carry, and not Z, then c must be smaller, so we're good
+    jr  .FrameRightOK
 
 .AdjustToFrameRight:
     ld  h, b
     ld  l, c                    ; hl now has player's world position X
+
     ld  a, [wFrameRightDelta]
-    cpl
-    inc a
-    push bc
     ld  c, a
-    ld  b, $00                  ; assume positive result
-    bit 7, c                    ; check if bit 7 is set (negative)
-    jr  z, .signExtendRight     ; if clear, b = $00 is correct
-    ld  b, $FF                  ; if set, sign extend with $FF
-.signExtendRight:
-    add hl, bc                  ; hl now has player's world position X - right delta
+    ld  b, 0                    ; bc = wFrameRightDelta
+
+    add hl, bc                  ; hl = player's world pos X + wFrameRightDelta (= this is where the screen shall end)
+
+    ; ok, so 160 in binary is 128 + 32 = %1010_0000
+    ; in 2's complement, this is:
+    ;                       %1111_1111 %0101_1111 + 1      
+    ;                       %1111_1111 %0110 0000         
+    ;                       $F    F    6     0              
+    push bc
+    ld  bc, $FF60           ; bc = -160
+    add hl, bc              ; hl = playerPosX + wFrameRightDelta - 160
 
     ld  b, h
     ld  c, l
@@ -310,51 +344,54 @@ Camera_Update:
     ; If player is below the bottom boundary, move camera down.
     push de
 
-    ld  a, [wFrameBottomDelta]
-    ld  e, a
-    ld  d, 0
-
     ld  a, [wCamPosY]
     ld  l, a
     ld  a, [wCamPosY + 1]
-    ld  h, a
+    ld  h, a                    ; hl = wCamPosY
 
-    add hl, de                  ; hl now has cam pos + bottom offset
+    ld  a, [wFrameTopDelta]
+    ld  c, a
+    ld  b, 0
+    add hl, bc                  ; hl = wCamPosY + wFrameTopDelta
+
+    ld  a, [wDeadZoneHeight]
+    ld  c, a
+    ld  a, [wDeadZoneHeight + 1]
+    ld  b, a                    ; bc = wDeadZoneHeight
+    add hl, bc                  ; hl = wCamPosY + wFrameTopDelta + wDeadZoneHeight
 
     pop de
     ; Signed 16-bit compare: frame-bottom (hl) vs player Y (de)
     SIGNED_CMP16 h, l, d, e
     jr  c, .AdjustToFrameBottom ; frame bottom < player Y -> player is below bottom boundary
-    jr  nz, .VerticalDone       ; frame bottom > player Y -> inside boundary
-    jr  z, .VerticalDone        ; exactly on boundary is OK
+    jr  .VerticalDone
 
 .AdjustToFrameBottom:
+    ; wCamPosY = playerPosY + wFrameBottomDelta - 144
     ld  h, d
-    ld  l, e                    ; hl now has player's world position Y
+    ld  l, e                    ; hl = player pos Y
+
     ld  a, [wFrameBottomDelta]
-    cpl
-    inc a
+    ld  c, a
+    ld  b, 0
+    add hl, bc                  ; hl = player Pos Y + wFrameBottomDelta
 
-    push de
-    ld  e, a
-    ld  d, $00                  ; assume positive result
-    bit 7, e                    ; check if bit 7 is set (negative)
-    jr  z, .signExtendBottom    ; if clear, d = $00 is correct
-    ld  d, $FF                  ; if set, sign extend with $FF
-.signExtendBottom:
-    add hl, de                  ; hl = player Y - bottom delta
-    pop de
+    ; -144 is:
+    ;               128 + 16 = %1001_0000
+    ;                          %0110_1111 + 1 
+    ;                          %0111_0000
+    ;              %1111_1111  %0111_0000
+    ;              $F    F     $7 0 
+    ld bc, $FF70
+    add hl, bc
 
-    push bc
     ld  b, h
     ld  c, l
-
+    
     ld  hl, wCamPosY
     ld  [hl], c
     inc hl
     ld  [hl], b
-
-    pop bc
 
 .VerticalDone:
 

@@ -9,7 +9,7 @@ DEF MAX_TRACER_SPEED_SPF EQU 64
 DEF DEFAULT_ACCELERATION EQU 8
 DEF DEFAULT_FRICTION EQU 8
 DEF DEFAULT_JUMP_STRENGTH EQU 64
-DEF DEFAULT_GRAVITY EQU 0				; for testing
+DEF DEFAULT_GRAVITY EQU 16				; for testing
 
 DEF WALL_TILE EQU 1
 
@@ -718,14 +718,14 @@ InitGlobals:
 	; or 20 x 18 tiles
 	; let's use the following borders: ("frame" or "camera dead zone")
 	; top: 8 tiles = 64 pixels
-	; bottom: 4 tiles = 32 pixels
+	; bottom: 1 tiles = 8 pixels
 	; left: 4 tiles = 32 pixels
-	; right: 8 tiles = 64 pixels     - just to get started
+	; right: 4 tiles = 32 pixels     - just to get started
 
 	ld	b, 32				; frame left delta
-	ld	c, 160 - 32 - 64	; deadzone width
+	ld	c, 32				; frame right delta
 	ld	d, 64				; frame top delta
-	ld	e, 144 - 64 - 32	; deadzone height
+	ld	e, 8				; frame bottom delta
 	call Camera_Init_Deadzone
 
 	ret
