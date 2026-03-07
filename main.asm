@@ -64,8 +64,6 @@ Main:
 	ldh a, [wCurrentPosDeltaY]
 	ld	e, a
 
-	
-
 	; CheckWallCollisions works with OAM data;
 	; so we can't use that during PPU update.
 	; might we get around by storing it in shadowOAM?
@@ -93,7 +91,7 @@ Main:
 
 	; Actually update OAM -------------------------------------------------------
 	;	 -- this should just consist of copying the data into OAM quick snap.
-	;call UpdateOAMFromWorldPosition
+	call UpdateOAMFromWorldPosition
 
 	jp 	Main
 
@@ -328,18 +326,78 @@ UpdateWorldPosition:
 	ld	b, 0				; this will come in handy later
 	bit 7, c
 	jr	z, .load_01_done
-	dec	b					; 0 - 1 = $FF
+	
+	; If d is negative, we need to clamp things to make sure
+	; we don't go below 0.
+	ld	a, [wWorldPosX + 1]	; load the high byte
+	or	a					; if the high byte is not zero, we're good
+	jr	nz, .tmp_jmp_01
+
+	ld	a, d				; negate delta
+	cpl
+	inc	a
+	ld	b, a				; b = -d
+
+	ld	a, [wWorldPosX]		; compare it to wWorldPosX
+	cp	b
+	jr	nc, .tmp_jmp_01		; if b smaller, no carry, we're good
+	jr	z, .tmp_jmp_01		; if equal, we're still good
+	
+	; Otherwise, we'll have to clamp d
+	ld	c, b				; c = -b	(which is now positive)
+	ld	b, a				; b = [wWorldPosX]
+	ld	a, c				; a = -b	(which is now positive)
+	sub	b					; a = -b - [wWorldPosX]
+	add	d
+	jr	z, .skip_x_add
+
+	ld	d, a	; stick it into d and c
+	ld	c, a	; bc should have the almost correct thing now
+
+.tmp_jmp_01:
+	ld	b, $FF					
+
 .load_01_done:
 	push de
 	call AddWord
 	pop	 de
 
+.skip_x_add:
 	ld	hl, wWorldPosY		; same thing for "e"
 	ld	c, e
 	ld	b, 0
 	bit	7, c
 	jr	z, .load_02_done
-	dec b
+
+	; If e is negative, we need to clamp it ot make sure we keep
+	; it nonnegative
+	ld	a, [wWorldPosY + 1]	; load the high byte
+	or	a					; if the high byte is not zero, we're good
+	jr	nz, .tmp_jmp_02
+
+	ld	a, e
+	cpl
+	inc	a
+	ld	b, a				; b = -e
+
+	ld	a, [wWorldPosY]
+	cp	b
+	jr	nc, .tmp_jmp_02
+	jr	z, .tmp_jmp_02
+
+	ld	c, b	; swap b and a with the help of c
+	ld	b, a
+	ld	a, c
+	sub	b
+	add	e
+	ret	z
+
+	ld	e, a
+	ld	c, a
+
+.tmp_jmp_02:
+	ld	b, $FF
+
 .load_02_done:
 	call AddWord
 	ret

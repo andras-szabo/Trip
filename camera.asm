@@ -8,6 +8,9 @@ SECTION "CameraVariables", WRAM0
     wDesiredPosX: dw        ; The position the camera is trying to reach (world coords)
     wDesiredPosY: dw        ; The position the camera is trying to reach (world coords)
 
+    wCamTilePosX: dw        ; Camera position in tiles, for convenience
+    wCamTilePosY: dw
+
     wFrameLeftDelta: db     ; Distance from cam pos to the left of the frame
     wFrameRightDelta: db    ; Distance from the right side of the screen to the right side of the frame; must fit into 1 byte!
     wDeadZoneWidth: dw       ; horizontal deadzone can technically be 160 pixels; vertical 144, so...
@@ -56,6 +59,19 @@ ENDM
 ;@param bc: Camera's initial position X
 ;@param de: Camera's initial position Y
 Camera_Init_Position:
+    ; Clamp X
+    bit 7, b
+    jr  z, .x_non_negative
+    ld  bc, 0
+
+.x_non_negative:
+    ; Clamp Y
+    bit 7, d
+    jr z, .y_non_negative
+    ld  de, 0
+
+.y_non_negative:
+
     ld  hl, wCamPosX
     ld  [hl], c         ; lower byte first
     inc hl
@@ -218,6 +234,12 @@ Camera_Update:
     ld  b, h
     ld  c, l
 
+    ; ... but clamp it to non-negative
+    bit 7, b
+    jr  z, .tmp_jmp_01
+    ld  bc, 0
+
+.tmp_jmp_01:
     ld  hl, wCamPosX
     ld  [hl], c                 ; store low byte first
     inc hl
@@ -276,6 +298,12 @@ Camera_Update:
 
     ld  b, h
     ld  c, l
+
+    bit 7, b
+    jr  z, .tmp_jmp_02
+    ld  bc, 0
+
+.tmp_jmp_02:
     ld  hl, wCamPosX
     ld  [hl], c                 ; store low byte first
     inc hl
@@ -330,6 +358,11 @@ Camera_Update:
     ld  b, h
     ld  c, l
 
+    bit 7, b
+    jr  .tmp_jmp_03
+    ld  bc, 0
+
+.tmp_jmp_03:
     ld  hl, wCamPosY
     ld  [hl], c
     inc hl
@@ -387,7 +420,12 @@ Camera_Update:
 
     ld  b, h
     ld  c, l
-    
+
+    bit 7, b
+    jr  z, .tmp_jmp_04
+    ld  bc, 0
+
+.tmp_jmp_04:    
     ld  hl, wCamPosY
     ld  [hl], c
     inc hl
