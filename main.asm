@@ -85,12 +85,49 @@ Main:
 	ld	b, a
 	
 	call Camera_Update
+	call TileMap_Update
 
 	; Actually update OAM -------------------------------------------------------
 	;	 -- this should just consist of copying the data into OAM quick snap.
 	call UpdateOAMFromWorldPosition
 
 	jp 	Main
+
+;---------------------------------------------------------------------------------
+; Not sure if this should go here, or Camera, or somewhere else
+
+TileMap_Update:
+	; First order of business: calculate new tile coordinates
+	; 						   and calculate scroll delta,
+	;						   based on wCamPosX and wCamPosXPrev
+	
+	; Scroll delta X: wCamPosX - wCamPosXPrev
+	ld	a, [wCamPosXPrev]
+	cpl	a							; flip a
+	inc	a							; and add 1
+	ld	c, a
+	ld	a, [wCamPosXPrev + 1]
+	cpl	a							; flip a
+	adc	0							; add 0 + the carry flag
+	ld	b, a						; bc: wCamPosXPrev negated (2's complement)
+
+	ld	a, [wCamPosX]
+	ld	l, a
+	ld	a, [wCamPosX + 1]
+	ld	h, a						; load wCamPosX into hl
+
+	add	hl, bc						; add (the now inverted) bc to hl
+									; hl should now contain the horizontal scroll delta.
+									; let's assume that it's ... not a whole lot,
+									; so we can ignore the high byte
+	
+
+	ld	a, [$FF43]
+	ld	b, a
+	ld	a, l
+	add	b
+	ld	[$FF43], a					; write into the horizontal scroll register
+	ret
 
 ;---------------------------------------------------------------------------------
 
