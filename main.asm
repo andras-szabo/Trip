@@ -101,7 +101,7 @@ TileMap_Update:
 	; 						   and calculate scroll delta,
 	;						   based on wCamPosX and wCamPosXPrev
 	
-	; Scroll delta X: wCamPosX - wCamPosXPrev
+	; Calculate and adjust scroll delta
 	ld	a, [wCamPosXPrev]
 	cpl	a							; flip a
 	inc	a							; and add 1
@@ -120,13 +120,171 @@ TileMap_Update:
 									; hl should now contain the horizontal scroll delta.
 									; let's assume that it's ... not a whole lot,
 									; so we can ignore the high byte
-	
+
+	; TODO: Skip further work w/ X coordinate if the delta is zero.
 
 	ld	a, [$FF43]
 	ld	b, a
 	ld	a, l
 	add	b
-	ld	[$FF43], a					; write into the horizontal scroll register
+	ld	[$FF43], a					; update the horizontal scroll register
+
+	; Calculate new tile position.
+	; First, if the delta is negative (h's most significant bit), flip the
+	; number, and remember that fact in 'e'
+	xor	a
+	ld	e, a
+	bit 7, h						; set z if nonnegative
+	jr	z, .x_delta_nonnegative
+	ld	e, 1						; set 'e' to remembe
+	ld	a, l
+	cpl
+	inc	a							; invert 'l' via a
+	ld	l, a
+
+.x_delta_nonnegative:
+	srl	l
+	srl	l
+	srl	l							; l now containx abs(x delta) / 8
+
+	ld	a, l
+	cp	1				; set carry if a == 0
+	jr	c, .h_delta_done
+
+	call WriteColumnIntoTileMap
+
+.h_delta_done:
+	ret
+
+;@param bc: new tile x
+;@param de: current tile y
+WriteColumnIntoTileMap:
+	ld	a, 20					; screen width
+	ld	l, a
+	xor a
+	ld	h, a
+	add	hl, bc						; hl = new_tile_x + 20
+	ld	a, l
+	and	a, %0011_1111			; a = (new_tile_x + 20) % 32
+
+	ld	b, a					; b: target column (0 - 31)
+
+	; calc target column
+	; calc target row (first)
+	; calc offset (just once)
+	; then we can just increment the offset by 32 to get the next tile
+
+	; Calculate first target row (de % 32):
+	ld	a, e
+	and	a, %0001_1111			; a = new_tile_y % 31
+
+	push hl
+	ld	l, a
+	xor	a
+	ld	h, a
+
+	sla l
+	sla	l
+	sla	l
+	sla	l				; at this point, we have to shift the carry up to h
+	rla					; rotate a through the carry flag
+	sla	l
+	rla					; and again; and then
+
+	ld	h, a			; hl = (ty & 31) << 5
+
+	push bc
+
+	ld	a, b			; a = target column (tx)
+	and	a, %0001_1111	; a = tx & 31
+	ld	c, a
+	ld	b, $98			; bc = $9800 + (tx & 31)
+
+	add	hl, bc			; hl = $9800 + ((ty & 31) << 5) + (tx & 31)
+	ld	a, l
+	ld	[wTileMapSeamOffset], a
+	ld	a, h
+	ld	[wTileMapSeamOffset + 1], a
+
+	pop	bc
+	pop	hl
+
+	ld	c, 18					; 1 column = 18 rows
+.fill_column_loop:
+
+	call GetTileID				; get tile ID in a
+
+	push hl
+	push af
+
+	ld	a, [wTileMapSeamOffset]
+	ld	l, a
+	ld	a, [wTileMapSeamOffset + 1]
+	ld	h, a					; hl = [wTileMapSeamOffset]
+
+	pop	af
+	ld	[hl], a					; write the tile data
+
+	push bc
+	ld	bc, 32
+	add	hl, bc
+	ld	a, l
+	ld	[wTileMapSeamOffset], a
+	ld	a, h
+	ld	[wTileMapSeamOffset + 1], a
+	pop bc
+	pop	hl
+
+	inc	de
+	dec c
+	jr	nz, .fill_column_loop
+	ret
+
+;@param hl: world coordinate x in tiles
+;@param de: world coordinate y in tiles
+;@return a: tile ID
+GetTileID:
+	; TODO actually do this
+	ld	a, 2	
+	ret
+
+;@param a: target row (ty)
+;@param b: target column (tx)
+;@param d: tile ID
+;@uses hl
+;@uses a
+;@uses bc
+WriteTileToVRAM:			; TODO clean up
+	; return 0x9800 + ((ty & 31) << 5) + (tx & 31);
+	and	a, %0001_1111
+	ld	l, a
+	xor	a	
+	ld	h, a
+
+	sla l
+	sla	l
+	sla	l
+	sla	l				; at this point, we have to shift the carry up to h
+	rla					; rotate a through the carry flag
+	sla	l
+	rla					; and again; and then
+
+	ld	h, a			; hl = (ty & 31) << 5
+
+	ld	a, b
+	and	a, %0001_1111
+
+	ld	c, a
+	ld	b, 0
+	add	hl, bc			; hl = ((ty & 31) << 5) + (tx & 31)
+	ld	b, h
+	ld	c, l
+	ld	hl, $9800
+
+	add	hl, bc			; hl = $9800 + ((ty & 31) << 5) + (tx & 31)
+	ld	a, d			; tile ID into a
+
+	ld	[hl], a
 	ret
 
 ;---------------------------------------------------------------------------------
@@ -793,6 +951,8 @@ wAcceleration:		db
 wJumpStrength:		db		; starting vertical acceleration, sp/frame
 wFriction:			db		; reducing lateral movement speed, sp/frame
 wGravity:			db		; sp/frame, to be applied on the y axis
+
+wTileMapSeamOffset:	dw
 
 SECTION "Foo", HRAM[$FF80]
 wCurrentAccX:		db
