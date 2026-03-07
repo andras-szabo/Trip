@@ -9,7 +9,7 @@ DEF MAX_TRACER_SPEED_SPF EQU 64
 DEF DEFAULT_ACCELERATION EQU 8
 DEF DEFAULT_FRICTION EQU 8
 DEF DEFAULT_JUMP_STRENGTH EQU 64
-DEF DEFAULT_GRAVITY EQU 16				; for testing
+DEF DEFAULT_GRAVITY EQU 0				; for testing
 
 DEF WALL_TILE EQU 1
 
@@ -21,13 +21,14 @@ EntryPoint:
 	call Init
 
 ;---------------------------------------------------------------------------------
-Main:
+PreMain:
 	; Wait until we're not in VBlank
 	ld	a, [rLY]
 	cp	144
-	jr	nc, Main
+	jr	nc, PreMain
 
-	call WaitForVBlank
+Main:
+	;call WaitForVBlank
 
 	call UpdateInput
 
@@ -63,11 +64,13 @@ Main:
 	ldh a, [wCurrentPosDeltaY]
 	ld	e, a
 
+	
+
 	; CheckWallCollisions works with OAM data;
 	; so we can't use that during PPU update.
 	; might we get around by storing it in shadowOAM?
 	; I think we should.
-	call CheckWallCollisions	; d and e now contain _updated_ horizontal position delta
+	;call CheckWallCollisions	; d and e now contain _updated_ horizontal position delta
 
 	; Update world positions
 	call UpdateWorldPosition
@@ -85,11 +88,12 @@ Main:
 	ld	b, a
 	
 	call Camera_Update
+	call WaitForVBlank
 	call TileMap_Update
 
 	; Actually update OAM -------------------------------------------------------
 	;	 -- this should just consist of copying the data into OAM quick snap.
-	call UpdateOAMFromWorldPosition
+	;call UpdateOAMFromWorldPosition
 
 	jp 	Main
 
@@ -136,7 +140,7 @@ TileMap_Update:
 	ld	e, a
 	bit 7, h						; set z if nonnegative
 	jr	z, .x_delta_nonnegative
-	ld	e, 1						; set 'e' to remembe
+	ld	e, 1						; set 'e' to remember
 	ld	a, l
 	cpl
 	inc	a							; invert 'l' via a
@@ -148,9 +152,12 @@ TileMap_Update:
 	srl	l							; l now containx abs(x delta) / 8
 
 	ld	a, l
-	cp	1				; set carry if a == 0
+	cp	1							; set carry if a == 0
 	jr	c, .h_delta_done
 
+	; Calculate tile y position, because of course; but for now
+	ld	e, 0
+	ld	d, 0
 	call WriteColumnIntoTileMap
 
 .h_delta_done:
@@ -178,10 +185,9 @@ WriteColumnIntoTileMap:
 	ld	a, e
 	and	a, %0001_1111			; a = new_tile_y % 31
 
-	push hl
 	ld	l, a
 	xor	a
-	ld	h, a
+	ld	h, a					
 
 	sla l
 	sla	l
@@ -201,46 +207,26 @@ WriteColumnIntoTileMap:
 	ld	b, $98			; bc = $9800 + (tx & 31)
 
 	add	hl, bc			; hl = $9800 + ((ty & 31) << 5) + (tx & 31)
-	ld	a, l
-	ld	[wTileMapSeamOffset], a
-	ld	a, h
-	ld	[wTileMapSeamOffset + 1], a
 
 	pop	bc
-	pop	hl
 
 	ld	c, 18					; 1 column = 18 rows
 .fill_column_loop:
 
 	call GetTileID				; get tile ID in a
 
-	push hl
-	push af
-
-	ld	a, [wTileMapSeamOffset]
-	ld	l, a
-	ld	a, [wTileMapSeamOffset + 1]
-	ld	h, a					; hl = [wTileMapSeamOffset]
-
-	pop	af
 	ld	[hl], a					; write the tile data
-
 	push bc
 	ld	bc, 32
 	add	hl, bc
-	ld	a, l
-	ld	[wTileMapSeamOffset], a
-	ld	a, h
-	ld	[wTileMapSeamOffset + 1], a
 	pop bc
-	pop	hl
 
 	inc	de
 	dec c
 	jr	nz, .fill_column_loop
 	ret
 
-;@param hl: world coordinate x in tiles
+;@param bc: world coordinate x in tiles
 ;@param de: world coordinate y in tiles
 ;@return a: tile ID
 GetTileID:
