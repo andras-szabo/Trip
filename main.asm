@@ -119,7 +119,7 @@ TileMap_Update:
 	ld	l, a
 	ld	a, [wCamPosX + 1]
 	ld	h, a						; load wCamPosX into hl
-
+	
 	add	hl, bc						; add (the now inverted) bc to hl
 									; hl should now contain the horizontal scroll delta.
 									; let's assume that it's ... not a whole lot,
@@ -153,11 +153,32 @@ TileMap_Update:
 
 	ld	a, l
 	cp	1							; set carry if a == 0
-	jr	c, .h_delta_done
+
+	; TODO - return if we didnt actually move
+	;jr	c, .h_delta_done
+
+	; Pass new tile x position in bc; divide by 8
+	ld	a, [wCamPosX]
+	ld	c, a
+	ld	a, [wCamPosX + 1]
+	ld	b, a
+
+	sra	b					; shift right arithmetically (keep sign bit)
+	rr	c					; rotate l right, using carry
+	sra	b
+	rr	c
+	sra	b
+	rr	c
+
+	ld	a, c
+	ld	[wCamPosTileX], a
+	ld	a, b
+	ld	[wCamPosTileX + 1] , a
 
 	; Calculate tile y position, because of course; but for now
 	ld	e, 0
 	ld	d, 0
+
 	call WriteColumnIntoTileMap
 
 .h_delta_done:
@@ -938,7 +959,7 @@ wJumpStrength:		db		; starting vertical acceleration, sp/frame
 wFriction:			db		; reducing lateral movement speed, sp/frame
 wGravity:			db		; sp/frame, to be applied on the y axis
 
-wTileMapSeamOffset:	dw
+wCamPosTileX:		dw
 
 SECTION "Foo", HRAM[$FF80]
 wCurrentAccX:		db
