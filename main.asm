@@ -124,63 +124,30 @@ TileMap_Update:
 									; let's assume that it's ... not a whole lot,
 									; so we can ignore the high byte
 
-	; TODO: Skip further work w/ X coordinate if the delta is zero.
-
 	ld	a, [$FF43]
 	ld	b, a
 	ld	a, l
 	add	b
 	ld	[$FF43], a					; update the horizontal scroll register
 
-	; Calculate new tile position.
-	; First, if the delta is negative (h's most significant bit), flip the
-	; number, and remember that fact in 'e'
-	xor	a
-	ld	e, a
-	bit 7, h						; set z if nonnegative
-	jr	z, .x_delta_nonnegative
-	ld	e, 1						; set 'e' to remember
-	ld	a, l
-	cpl
-	inc	a							; invert 'l' via a
-	ld	l, a
+	; TODO: only write column into tile map if we actually
+	; 		moved to a new tile
 
-.x_delta_nonnegative:
-	srl	l
-	srl	l
-	srl	l							; l now containx abs(x delta) / 8
+	ld	a, [wCamTileDirty]
+	or	a
+	ret	z  ; if not dirty - feel free to ignore
 
-	ld	a, l
-	cp	1							; set carry if a == 0
+	ld	hl, wCamTilePosX
+	ld	c, [hl]
+	inc	hl
+	ld	b, [hl]
 
-	; TODO - return if we didnt actually move
-	;jr	c, .h_delta_done
-
-	; Pass new tile x position in bc; divide by 8
-	ld	a, [wCamPosX]
-	ld	c, a
-	ld	a, [wCamPosX + 1]
-	ld	b, a
-
-	sra	b					; shift right arithmetically (keep sign bit)
-	rr	c					; rotate l right, using carry
-	sra	b
-	rr	c
-	sra	b
-	rr	c
-
-	ld	a, c
-	ld	[wCamPosTileX], a
-	ld	a, b
-	ld	[wCamPosTileX + 1] , a
-
-	; Calculate tile y position, because of course; but for now
-	ld	e, 0
-	ld	d, 0
+	ld	hl, wCamTilePosY
+	ld	e, [hl]
+	inc	hl
+	ld	d, [hl]
 
 	call WriteColumnIntoTileMap
-
-.h_delta_done:
 	ret
 
 ;@param bc: new tile x
@@ -1018,13 +985,16 @@ wJumpStrength:		db		; starting vertical acceleration, sp/frame
 wFriction:			db		; reducing lateral movement speed, sp/frame
 wGravity:			db		; sp/frame, to be applied on the y axis
 
-wCamPosTileX:		dw
-
 SECTION "Foo", HRAM[$FF80]
 wCurrentAccX:		db
 wCurrentAccY:		db
 wCurrentPosDeltaX:	db
 wCurrentPosDeltaY:	db
+
+wAF:				dw		; hi ram shadow registers,
+wBC:				dw		; so we can save temp copies
+wDE:				dw		; without going thru the
+wHL:				dw		; stack
 
 SECTION "Input variables", WRAM0
 wCurKeys:	db

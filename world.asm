@@ -17,20 +17,20 @@ wWorldMap_Rows:
     dw  WORLD_BUFFER_WIDTH * 2 * 5
     dw  WORLD_BUFFER_WIDTH * 2 * 6
     dw  WORLD_BUFFER_WIDTH * 2 * 7
-    dw  WORLD_BUFFER_wIDTH * 2 * 8
-    dw  WORLD_BUFFER_wIDTH * 2 * 9
-    dw  WORLD_BUFFER_wIDTH * 2 * 10
-    dw  WORLD_BUFFER_wIDTH * 2 * 11
-    dw  WORLD_BUFFER_wIDTH * 2 * 12
-    dw  WORLD_BUFFER_wIDTH * 2 * 13
-    dw  WORLD_BUFFER_wIDTH * 2 * 14
-    dw  WORLD_BUFFER_wIDTH * 2 * 15
-    dw  WORLD_BUFFER_wIDTH * 2 * 16
-    dw  WORLD_BUFFER_wIDTH * 2 * 17
-    dw  WORLD_BUFFER_wIDTH * 2 * 18
-    dw  WORLD_BUFFER_wIDTH * 2 * 19
-    dw  WORLD_BUFFER_wIDTH * 2 * 20
-    dw  WORLD_BUFFER_wIDTH * 2 * 21
-    dw  WORLD_BUFFER_wIDTH * 2 * 22
+    dw  WORLD_BUFFER_WIDTH * 2 * 8
+    dw  WORLD_BUFFER_WIDTH * 2 * 9
+    dw  WORLD_BUFFER_WIDTH * 2 * 10
+    dw  WORLD_BUFFER_WIDTH * 2 * 11
+    dw  WORLD_BUFFER_WIDTH * 2 * 12
+    dw  WORLD_BUFFER_WIDTH * 2 * 13
+    dw  WORLD_BUFFER_WIDTH * 2 * 14
+    dw  WORLD_BUFFER_WIDTH * 2 * 15
+    dw  WORLD_BUFFER_WIDTH * 2 * 16
+    dw  WORLD_BUFFER_WIDTH * 2 * 17
+    dw  WORLD_BUFFER_WIDTH * 2 * 18
+    dw  WORLD_BUFFER_WIDTH * 2 * 19
+    dw  WORLD_BUFFER_WIDTH * 2 * 20
+    dw  WORLD_BUFFER_WIDTH * 2 * 21
+    dw  WORLD_BUFFER_WIDTH * 2 * 22
 .End:
 

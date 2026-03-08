@@ -11,6 +11,9 @@ SECTION "CameraVariables", WRAM0
     wCamTilePosX: dw        ; Camera position in tiles, for convenience
     wCamTilePosY: dw
 
+    wCamTileDirty:  db      ; Did the camera move to a new tile, horizontally or vertically
+                            ; (or both)?
+
     wFrameLeftDelta: db     ; Distance from cam pos to the left of the frame
     wFrameRightDelta: db    ; Distance from the right side of the screen to the right side of the frame; must fit into 1 byte!
     wDeadZoneWidth: dw       ; horizontal deadzone can technically be 160 pixels; vertical 144, so...
@@ -92,6 +95,81 @@ Camera_Init_Position:
     inc hl
     ld  [hl], d
 
+    call UpdateCamTilePos
+
+    ret
+
+;@param bc: wCamPosX
+;@param de: wCamPosY
+;@uses a
+;@uses hl
+;@This will modify and invalidate both bc and de.
+;@It will set [wCamTileDirty] as well.
+UpdateCamTilePos:
+    ; Clear wCamTileDirty
+    xor a
+    ld  [wCamTileDirty], a
+
+    ; First, divide bc by 8
+    sra b           ; shift right arithmetically
+    rr  c           ; rotate 1 right, using carry
+    sra b           
+    rr  c
+    sra b
+    rr  c
+
+    ; Compare with existing, update if needed
+    ld  hl, wCamTilePosX
+    ld  a, [hl]
+    cp  c
+    jr  nz, .x_is_dirty
+    inc hl
+    ld  a, [hl]
+    cp  b
+    jr  nz, .x_is_dirty
+    jr  .check_y
+
+.x_is_dirty:
+    ; Store tile position x
+    ld  a, c
+    ld  [wCamTilePosX], a
+    ld  a, b
+    ld  [wCamTilePosX + 1], a
+    
+    ld  a, 1
+    ld  [wCamTileDirty], a
+
+.check_y:
+    ; Then divide de by 8
+    sra d
+    rr  e
+    sra d
+    rr  e
+    sra d
+    rr  e
+
+    ; Compare with existing, update if needed
+    ld  hl, wCamTilePosY
+    ld  a, [hl]
+    cp  e
+    jr  nz, .y_is_dirty
+    inc hl
+    ld  a, [hl]
+    cp  d
+    jr  nz, .y_is_dirty
+    jr  .done
+
+.y_is_dirty:
+    ; Store tile position y
+    ld  a, e
+    ld  [wCamTilePosY], a
+    ld  a, d
+    ld  [wCamTilePosY + 1], a
+
+    ld  a, 1
+    ld  [wCamTileDirty], a
+
+.done:
     ret
 
 ;@param b: frameLeftDelta
@@ -186,6 +264,7 @@ Camera_Update:
     ld a, [hl]
     ld [wCamPosYPrev + 1], a
 
+
     ; Calculate desired camera position based on player position and dead zone
 
     ; Calculate frame left using current camera position + offset
@@ -242,9 +321,16 @@ Camera_Update:
 .tmp_jmp_01:
     ld  hl, wCamPosX
     ld  [hl], c                 ; store low byte first
+
+    ld  a, c
+    ldh [wBC], a                ; also store into wBC
+
     inc hl
     ld  [hl], b                 ; store high byte second
-    
+
+    ld  a, b
+    ld  [wBC + 1], a            ; also store into wBC
+   
     pop bc
     jr  .AdjustVerticalPosition
 
@@ -306,6 +392,7 @@ Camera_Update:
 .tmp_jmp_02:
     ld  hl, wCamPosX
     ld  [hl], c                 ; store low byte first
+
     inc hl
     ld  [hl], b                 ; then store high byte
 
@@ -432,5 +519,18 @@ Camera_Update:
     ld  [hl], b
 
 .VerticalDone:
+    
+    ; Load into bx [wCamPosX], into de [wCamPosY], and calculate new
+    ; camera tile positions
+    ld  hl, wCamPosX
+    ld  c, [hl]
+    inc hl
+    ld  b, [hl]
+
+    ld  hl, wCamPosY
+    ld  e, [hl]
+    inc hl
+    ld  d, [hl]
+    call UpdateCamTilePos
 
     ret
