@@ -3,6 +3,7 @@ INCLUDE "utility.inc"
 INCLUDE "input.inc"
 
 INCLUDE "camera.asm"
+INCLUDE "world.asm"
 
 DEF SUBPIXELS_PER_PIXEL EQU 16
 DEF MAX_TRACER_SPEED_SPF EQU 64
