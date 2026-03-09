@@ -13,6 +13,12 @@ SECTION "CameraVariables", WRAM0
 
     wCamTileDirty:  db      ; Did the camera move to a new tile, horizontally or vertically
                             ; (or both)?
+    wCamMoveDelta:  db      ; In which direction did the camera move in the previous frame?
+                            ; treat it as a bitfield:
+                            ; bit 0: moved left
+                            ; bit 1: moved right
+                            ; bit 2: moved up
+                            ; bit 3: moved down
 
     wFrameLeftDelta: db     ; Distance from cam pos to the left of the frame
     wFrameRightDelta: db    ; Distance from the right side of the screen to the right side of the frame; must fit into 1 byte!
@@ -251,6 +257,7 @@ Camera_Update:
     ; 
     ; Apply the same offsets vertically.
 
+
     ; Save previous camera position
     ld hl, wCamPosX
     ld a, [hli]
@@ -264,6 +271,9 @@ Camera_Update:
     ld a, [hl]
     ld [wCamPosYPrev + 1], a
 
+    ; Clear wCamMoveDelta
+    xor a
+    ld  [wCamMoveDelta], a
 
     ; Calculate desired camera position based on player position and dead zone
 
@@ -332,6 +342,10 @@ Camera_Update:
     ld  [wBC + 1], a            ; also store into wBC
    
     pop bc
+
+    ld  a, %0000_0001           ; if we're adjusting to frame left, then we must have
+    ld  [wCamMoveDelta], a      ; moved to the left
+
     jr  .AdjustVerticalPosition
 
 .FrameLeftOK:                   ; if frame left is OK, let's check if frame right is OK too
@@ -396,6 +410,9 @@ Camera_Update:
     inc hl
     ld  [hl], b                 ; then store high byte
 
+    ld  a, %0000_0010           ; we moved to the right
+    ld  [wCamMoveDelta], a
+
     pop bc
 .FrameRightOK:
 .AdjustVerticalPosition:
@@ -454,6 +471,10 @@ Camera_Update:
     ld  [hl], c
     inc hl
     ld  [hl], b
+
+    ld  a, [wCamMoveDelta]
+    or  a, %0000_0100           ; we moved up
+    ld  [wCamMoveDelta], a
 
     pop bc
 
@@ -517,6 +538,10 @@ Camera_Update:
     ld  [hl], c
     inc hl
     ld  [hl], b
+
+    ld  a, [wCamMoveDelta]
+    or  a, %0000_1000       ; we moved down
+    ld  [wCamMoveDelta], a
 
 .VerticalDone:
     

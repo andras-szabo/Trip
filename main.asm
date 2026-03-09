@@ -87,6 +87,13 @@ Main:
 	ld	b, a
 	
 	call Camera_Update
+
+	ld	a, [wCamTileDirty]
+	or	a
+	jr	nz, .skip_shadow_map_update
+	call UpdateShadowMap
+
+.skip_shadow_map_update:
 	call WaitForVBlank
 	call TileMap_Update
 
