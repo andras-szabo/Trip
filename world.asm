@@ -15,18 +15,13 @@ UpdateShadowMap:
     ; Then the question is, in which direction have we moved. This is how we'd write it in a
     ; sane programming language:
 
-    ; switch (wCamMoveDelta)
-    ;   case LEFT: deltaX = -1; break;
-    ;   case RIGHT: deltaX = 1; break;
-    ;   case UP: deltaY = -1;   break;
-    ;   case DOWN: deltaY = 1;  break;
-    
-    ; FFS. We have world tile position of the player;
-    ; that position % 22 shows where the player is right now.
-    ; whenever we move to the right, we need to add 22, so we
-    ; and take the modulo; that's the number of the column
-    ; that we have to fill in.
-    
+    ; Because of how the tile map wraps around, we need to keep track of the camera's
+    ; current x and y tile _in_the_shadow_map; which is [wCamTilePosX] % 32, and [wCamTilePosY] % 32.
+    ; these are the starting tiles.
+    ;
+    ; Then, check in which direction we moved.
+    ; If along x, we have to load a new column; if along y, we have to load a new row, d'uh.
+
     ld  a, [wCamMoveDelta]
     and a, %0000_0001
     jr  z, .not_moved_right
@@ -63,17 +58,57 @@ UpdateShadowMap:
     ld  a, l
     and a, %0001_1111           ; modulo 32
 .column_to_load_set:
+                                ; column-to-load is now in a; so let's find out which
+                                ; row is the first one to load
+
+    ld  d, a                    ; d = column-to-load
+    ld  a, [wCamTilePosY]
+    and a, %0001_1111           ; modulo 32
+    ld  e, a                    ; store this in e
+                                ; de now has column and row to start loading at.
+
+    ; TODO - use the logic in WriteTileToVRAM
+
+
+    ; Starting address is:
+    ; [column_to_load] + [row_to_load * 32]
+    ld  c, e                    ; c = row_to_load
+    ld  b, 0                    ; bc = row_to_load
+
+    ; Maybe instead of these we could actually use a lookup table:
+    ; lut_start + row_to_load * 2
+    sla c   ; shift left arithmetically = multiply by 2, set carry      ; mul by 2
+    rl  b   ; rotate left through carry
+
+    sla c   ; shift left arithmatically = mul by 2, set carry           ; mul by 4
+    rl  b   ; rotate left through carry
+
+    sla c   ; mul by 8
+    rl  b   ;
+
+    sla c   ; mul by 16
+    rl  b   
+
+    sla c   ; mul by 32
+    rl  b
+
+    ld  h, b
+    ld  l, c    ; hl = bc
+    ld  c, d    ; c = column-to-load
+    ld  b, 0
+    add hl, bc  ; hl = column-to-load + (row-to-load * 32)
+    ld  b, h
+    ld  c, l    ; bc = column-to-load + (row-to-load * 32) == offset
 
     ; let's find the starting address
-    ld  c, a
-    ld  b, 0
     ld  hl, wShadowMapBuffer
-    add hl, bc                  ; hl is now pointing to the start of the column
-                                ; we'll need to load
+    add hl, bc                  ; hl is now pointing to the start of the
+                                ; column we need to load
 
     ; We'll need to use bc for incrementing hl, so let's keep track of the loop
     ; in d
 
+    ld  b, 0
     ld  c, 32       ; bc is now 32
     ld  d, 0        ; we'll use d as a counter
 
@@ -82,6 +117,9 @@ UpdateShadowMap:
     ; tile to load y = [wCamTilePosY + d]
     ld  [hl], a     ; load tile data into shadow map
     add hl, bc      ; jump to the next tile
+                    ; except with this we could have jumped out of
+                    ; the valid range, so we need to clamp it ffs
+
     inc d           ; increment the counter
     ld  a, 32       ; check if d == 32
     cp  d
@@ -89,7 +127,7 @@ UpdateShadowMap:
 
 
 
-.not_moved_along_x:
+.not_moved_along_x: */
     ret
 
 
