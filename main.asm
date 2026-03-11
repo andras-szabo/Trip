@@ -95,7 +95,9 @@ Main:
 
 .skip_shadow_map_update:
 	call WaitForVBlank
-	call TileMap_Update
+	
+	; TODO
+	;call TileMap_Update
 
 	; Actually update OAM -------------------------------------------------------
 	;	 -- this should just consist of copying the data into OAM quick snap.
@@ -823,6 +825,13 @@ InitTracerSprite:
 	ld	[hli], a
 	ret
 
+CopyInitialShadowMapToTileMap:
+	ld	de, wShadowMapBuffer		; source
+	ld	hl, $9800					; tile map
+	ld	bc, 32*32
+	call MemCopy
+	ret
+
 SetupTileMap:
 	; Clear tile map
 	ld	hl, $9800
@@ -970,7 +979,9 @@ Init:
 	call WaitForVBlank
 	call TurnOffLCD
 	call CopyTileDataIntoVRAM
-	call SetupTileMap
+	call InitShadowMap
+	call CopyInitialShadowMapToTileMap
+	;call SetupTileMap
 	call CopySpriteDataIntoVRAM
 	call ClearOAM
 	call InitTracerSprite
@@ -998,10 +1009,12 @@ wCurrentAccY:		db
 wCurrentPosDeltaX:	db
 wCurrentPosDeltaY:	db
 
-wAF:				dw		; hi ram shadow registers,
+wA:					db		; hi ram shadow registers,
 wBC:				dw		; so we can save temp copies
 wDE:				dw		; without going thru the
 wHL:				dw		; stack
+
+wColumnToLoad:		db
 
 SECTION "Input variables", WRAM0
 wCurKeys:	db

@@ -7,7 +7,7 @@ wShadowMapBuffer:    ds  SHADOW_MAP_BUFFER_SIZE
 
 SECTION "WorldCode", ROM0
 ;@param [wCamMoveDelta]     - in which direction have we moved? low bits: DOWN|UP|RIGHT|LEFT
-;@param [wCamTileDirty]     - did we swap tiles?
+;@param [wCamTileDirty]     - did we move to a new tile?
 ;@param [wCamTilePosX]      - cam tile pos x
 ;@param [wCamTilePosY]      - cam tile pos y, indeed. a ver.
 UpdateShadowMap:
@@ -48,18 +48,19 @@ UpdateShadowMap:
     ld  b, a                    ; bc now has wCamTilePosX
     ld  l, a
     ld  h, 0                    ; hl now has the delta
-    add hl, bc                  ; hl now has new tile position
+    bit 7, d                    ; except we have to sign extend
+    jr  z, .skip_sign_extend_hl
+    ld  h, $FF
 
-    bit 7, h                    ; if negative, col to load is the last one
-    jr  z, .column_to_load_is_not_the_last
-    ld  a, 31                   ;
-    jr  .column_to_load_set
-.column_to_load_is_not_the_last:
+.skip_sign_extend_hl:
+    add hl, bc                  ; hl now has new tile position
     ld  a, l
-    and a, %0001_1111           ; modulo 32
-.column_to_load_set:
+    and a, %0001_1111           ; modulo 32, I think this should work even if l was negative
+                                
                                 ; column-to-load is now in a; so let's find out which
                                 ; row is the first one to load
+
+    ldh [wColumnToLoad], a
 
     ld  d, a                    ; d = column-to-load
     ld  a, [wCamTilePosY]
@@ -69,7 +70,6 @@ UpdateShadowMap:
 
     ; TODO - use the logic in WriteTileToVRAM
 
-
     ; Starting address is:
     ; [column_to_load] + [row_to_load * 32]
     ld  c, e                    ; c = row_to_load
@@ -78,16 +78,19 @@ UpdateShadowMap:
     ; Maybe instead of these we could actually use a lookup table:
     ; lut_start + row_to_load * 2
     sla c   ; shift left arithmetically = multiply by 2, set carry      ; mul by 2
-    rl  b   ; rotate left through carry
+    ;rl  b  ; rotate left through carry -> technically this should not be needed,
+            ; because the number we're starting with is < 32, so at most the 32
+            ; bit is now 1; with the next rotation, 64, then 128, and only THEN
+            ; do we have to worry about carry
 
     sla c   ; shift left arithmatically = mul by 2, set carry           ; mul by 4
-    rl  b   ; rotate left through carry
+    ;rl  b  ; rotate left through carry (see above, at most bit 6 (64) is now set)
 
     sla c   ; mul by 8
-    rl  b   ;
+    ;rl  b  ; at most bit 7 (128) is set
 
     sla c   ; mul by 16
-    rl  b   
+    rl  b   ; now we do have to rotate through carry
 
     sla c   ; mul by 32
     rl  b
@@ -100,34 +103,109 @@ UpdateShadowMap:
     ld  b, h
     ld  c, l    ; bc = column-to-load + (row-to-load * 32) == offset
 
-    ; let's find the starting address
-    ld  hl, wShadowMapBuffer
-    add hl, bc                  ; hl is now pointing to the start of the
-                                ; column we need to load
-
-    ; We'll need to use bc for incrementing hl, so let's keep track of the loop
-    ; in d
-
-    ld  b, 0
-    ld  c, 32       ; bc is now 32
-    ld  d, 0        ; we'll use d as a counter
-
+    ld  d, 0                    ; this will keep track of the loop
+    ; let's find the address to load to
 .column_copy_loop:
+    ld  hl, wShadowMapBuffer
+    add hl, bc                  ; hl is now pointing to the memory
+                                ; address where we have to start loading
+
     ; tile to load x = [wCamTilePosX] 
     ; tile to load y = [wCamTilePosY + d]
+
+    ;-----------------------------------------------------------------------
+    ; TODO: load into a the tile from real world
+    ;-----------------------------------------------------------------------
+    ; For now, let's just load ([wCamTilePosX] / 8) % 4
+    ld  a, [wCamTilePosX]
+    sra a   ; div by 2
+    sra a   ; div by 4
+    sra a   ; div by 8
+    and a, %0000_0011   ; mod 4 just in case
+    ;-----------------------------------------------------------------------
+    ; TODO: load into a the tile from real world
+    ;-----------------------------------------------------------------------
+
     ld  [hl], a     ; load tile data into shadow map
+                    
+    ld  a, c        ; move on to the next tile: increment the offset by 32
+    add 32
+    ld  c, a
+    jr  nc, .skip_offset_carry
+    inc b           ; if carry, increment b
+.skip_offset_carry:
+                    ; bc now has the new offset; but we have to clamp it
+                    ; to a valid region of 32x32 = 1024 bytes. I think we
+                    ; can achieve that by leaving c as it is, and discarding
+                    ; high bits of b
+    ld  a, b
+    and a, %0000_0011   ; taking bits 256 and 512
+    ld  b, a
+
     add hl, bc      ; jump to the next tile
                     ; except with this we could have jumped out of
-                    ; the valid range, so we need to clamp it ffs
+                    ; 
 
     inc d           ; increment the counter
     ld  a, 32       ; check if d == 32
     cp  d
     jr  nz, .column_copy_loop
+    ret
 
-
-
-.not_moved_along_x: */
+.not_moved_along_x:
     ret
 
 
+;@param a: column to copy
+;@uses a, bc, d, hl
+CopyColumnToTileMap:
+    ld  d, 0        ; loop counter
+
+    ld  c, a            
+    ld  b, 0        ; bc: column to load, 0 <= a <= 31; this will also be
+                    ; the starting offset
+    
+.next_row:
+    ld  hl, wShadowMapBuffer
+    add hl, bc
+    ld  a, [hl]     ; a now contains the value in the shadow map buffer
+
+    ld  hl, $9800
+    add hl, bc      ; hl now has the target
+    ld  [hl], a
+
+    ld  a, c
+    add 32
+    jr  nc, .skip_carry
+    inc b
+
+.skip_carry:
+    inc d
+    ld  a, d
+    cp  32
+    jr  nz, .next_row
+
+    ret
+
+; Load a striped pattern for now
+InitShadowMap:
+    xor a
+    ld  d, a
+    ld  hl, wShadowMapBuffer
+    ld  bc, 32 * 32
+
+.next_tile:
+    ld  a, d
+    sra a
+    sra a
+    sra a
+    and a, %0000_0011
+    inc d
+
+    ld  [hli], a
+    dec bc
+    ld  a, b
+    or  c
+    jr  nz, .next_tile
+
+    ret
