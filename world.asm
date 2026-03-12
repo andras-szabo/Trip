@@ -26,14 +26,14 @@ UpdateShadowMap:
     ldh [wColumnToLoad], a
 
     ld  a, [wCamMoveDelta]
-    and a, %0000_0001
+    and a, %0000_0010
     jr  z, .not_moved_right
     ld  a, 20; add screen width
     jr  .x_delta_is_set
 
 .not_moved_right:
     ld  a, [wCamMoveDelta]
-    and a, %0000_0010
+    and a, %0000_0001
     jr  z, .x_delta_is_set
     ; -1 in 2's complement: 
     ;       1111_1110  +1 =
@@ -49,7 +49,8 @@ UpdateShadowMap:
     ld  c, a
     ld  a, [wCamTilePosX + 1]
     ld  b, a                    ; bc now has wCamTilePosX
-    ld  l, a
+
+    ld  l, d
     ld  h, 0                    ; hl now has the delta
     bit 7, d                    ; except we have to sign extend
     jr  z, .skip_sign_extend_hl
@@ -64,8 +65,8 @@ UpdateShadowMap:
                                 ; row is the first one to load
 
     ldh [wColumnToLoad], a
-
     ld  d, a                    ; d = column-to-load
+
     ld  a, [wCamTilePosY]
     and a, %0001_1111           ; modulo 32
     ld  e, a                    ; store this in e
@@ -108,6 +109,8 @@ UpdateShadowMap:
 
     ld  d, 0                    ; this will keep track of the loop
     ; let's find the address to load to
+
+
 .column_copy_loop:
     ld  hl, wShadowMapBuffer
     add hl, bc                  ; hl is now pointing to the memory
@@ -120,10 +123,14 @@ UpdateShadowMap:
     ; TODO: load into a the tile from real world
     ;-----------------------------------------------------------------------
     ; For now, let's just load ([wCamTilePosX] / 8) % 4
+    ; ... and just for fun, add d
+
     ld  a, [wCamTilePosX]
+
     sra a   ; div by 2
     sra a   ; div by 4
     sra a   ; div by 8
+
     and a, %0000_0011   ; mod 4 just in case
     ;-----------------------------------------------------------------------
     ; TODO: load into a the tile from real world
@@ -145,15 +152,10 @@ UpdateShadowMap:
     and a, %0000_0011   ; taking bits 256 and 512
     ld  b, a
 
-    add hl, bc      ; jump to the next tile
-                    ; except with this we could have jumped out of
-                    ; 
-
     inc d           ; increment the counter
     ld  a, 32       ; check if d == 32
     cp  d
     jr  nz, .column_copy_loop
-    ret
 
 .not_moved_along_x:
     ret
@@ -179,6 +181,7 @@ CopyColumnToTileMap:
 
     ld  a, c
     add 32
+    ld  c, a
     jr  nc, .skip_carry
     inc b
 
@@ -198,13 +201,14 @@ InitShadowMap:
     ld  bc, 32 * 32
 
 .next_tile:
-    ld  a, d
+   /* ld  a, d
     sra a
     sra a
     sra a
     and a, %0000_0011
-    inc d
+    inc d*/
 
+    xor a
     ld  [hli], a
     dec bc
     ld  a, b

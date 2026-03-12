@@ -90,7 +90,7 @@ Main:
 
 	ld	a, [wCamTileDirty]
 	or	a
-	jr	nz, .skip_shadow_map_update
+	jr	z, .skip_shadow_map_update
 	call UpdateShadowMap
 
 .skip_shadow_map_update:
@@ -141,9 +141,10 @@ TileMap_Update:
 	; TODO: only write column into tile map if we actually
 	; 		moved to a new tile
 
-	ldh	a, [wColumnToLoad]
+	ld	a, [wCamTileDirty]
 	or	a
 	ret	z
+	ldh	a, [wColumnToLoad]
 	call CopyColumnToTileMap
 	ret
 
