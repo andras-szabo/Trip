@@ -96,8 +96,7 @@ Main:
 .skip_shadow_map_update:
 	call WaitForVBlank
 	
-	; TODO
-	;call TileMap_Update
+	call TileMap_Update
 
 	; Actually update OAM -------------------------------------------------------
 	;	 -- this should just consist of copying the data into OAM quick snap.
@@ -142,21 +141,10 @@ TileMap_Update:
 	; TODO: only write column into tile map if we actually
 	; 		moved to a new tile
 
-	ld	a, [wCamTileDirty]
+	ldh	a, [wColumnToLoad]
 	or	a
-	ret	z  ; if not dirty - feel free to ignore
-
-	ld	hl, wCamTilePosX
-	ld	c, [hl]
-	inc	hl
-	ld	b, [hl]
-
-	ld	hl, wCamTilePosY
-	ld	e, [hl]
-	inc	hl
-	ld	d, [hl]
-
-	call WriteColumnIntoTileMap
+	ret	z
+	call CopyColumnToTileMap
 	ret
 
 ;@param bc: new tile x

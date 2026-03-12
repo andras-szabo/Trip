@@ -257,7 +257,6 @@ Camera_Update:
     ; 
     ; Apply the same offsets vertically.
 
-
     ; Save previous camera position
     ld hl, wCamPosX
     ld a, [hli]
@@ -290,9 +289,19 @@ Camera_Update:
     ld  l, a
     ld  a, [wCamPosX + 1]       ; high byte into h
     ld  h, a
+
+    or  l
+    ldh [wA], a                 ; save h|l into [wA]; if this is 0, we can accept
+                                ; .FrameLeftOK, because we can't go further left.
+                                ; but we have to pop bc first.
+
     add hl, bc                  ; hl now has cam pos + left offset
 
     pop bc                      ; bc now again has player's world position X
+
+    ldh a, [wA]
+    or  a
+    jr  z, .FrameLeftOK
 
     ; Signed 16-bit compare: frame-left (hl) vs player X (bc)
     SIGNED_CMP16 h, l, b, c

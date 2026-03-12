@@ -22,10 +22,13 @@ UpdateShadowMap:
     ; Then, check in which direction we moved.
     ; If along x, we have to load a new column; if along y, we have to load a new row, d'uh.
 
+    xor a
+    ldh [wColumnToLoad], a
+
     ld  a, [wCamMoveDelta]
     and a, %0000_0001
     jr  z, .not_moved_right
-    ld  a, SHADOW_MAP_WIDTH  ; add shadow map width
+    ld  a, 20; add screen width
     jr  .x_delta_is_set
 
 .not_moved_right:
