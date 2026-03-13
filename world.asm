@@ -44,7 +44,7 @@ UpdateShadowMap:
     or  a
     jr  z, .not_moved_along_x
 
-    ld  d, a
+    ld  d, a                    
     ld  a, [wCamTilePosX]
     ld  c, a
     ld  a, [wCamTilePosX + 1]
@@ -125,7 +125,8 @@ UpdateShadowMap:
     ; For now, let's just load ([wCamTilePosX] / 8) % 4
     ; ... and just for fun, add d
 
-    ld  a, [wCamTilePosX]
+    ldh a, [wColumnToLoad]
+    add d  
 
     sra a   ; div by 2
     sra a   ; div by 4
@@ -201,14 +202,15 @@ InitShadowMap:
     ld  bc, 32 * 32
 
 .next_tile:
-   /* ld  a, d
+    ld  a, d
+
     sra a
     sra a
     sra a
     and a, %0000_0011
-    inc d*/
 
-    xor a
+    inc d
+
     ld  [hli], a
     dec bc
     ld  a, b
