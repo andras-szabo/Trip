@@ -165,34 +165,37 @@ UpdateShadowMap:
 ;@param a: column to copy
 ;@uses a, bc, d, hl
 CopyColumnToTileMap:
-    ld  d, 0        ; loop counter
-
-    ld  c, a            
-    ld  b, 0        ; bc: column to load, 0 <= a <= 31; this will also be
-                    ; the starting offset
-    
-.next_row:
-    ld  hl, wShadowMapBuffer
-    add hl, bc
-    ld  a, [hl]     ; a now contains the value in the shadow map buffer
-
-    ld  hl, $9800
-    add hl, bc      ; hl now has the target
-    ld  [hl], a
-
-    ld  a, c
-    add 32
+    ld  hl, wShadowMapBuffer    ; source
     ld  c, a
-    jr  nc, .skip_carry
-    inc b
+    ld  b, 0
+    add hl, bc
 
-.skip_carry:
+    ld  d, $98
+    ld  e, a                    ; destination
+
+    ld  b, 32                   ; number of rows
+.next_row:
+    ld  a, [hl]                 ; copy from src ...
+    ld  [de], a                 ; ... to dst
+
+    ld  a, l                    ; increment src by 32
+    add 32
+    ld  l, a
+    jr  nc, .skip_src_carry
+    inc h
+
+.skip_src_carry:                ; increment dst by 32
+    ld  a, e
+    add 32
+    ld  e, a
+    jr  nc, .skip_dst_carry
     inc d
-    ld  a, d
-    cp  32
-    jr  nz, .next_row
 
+.skip_dst_carry:                ; decrement loop variable
+    dec b                       ; if 0 -> we're done.
+    jr  nz, .next_row
     ret
+
 
 ; Load a striped pattern for now
 InitShadowMap:

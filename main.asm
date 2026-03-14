@@ -95,12 +95,11 @@ Main:
 
 .skip_shadow_map_update:
 	call WaitForVBlank
-	
-	call TileMap_Update
-
 	; Actually update OAM -------------------------------------------------------
 	;	 -- this should just consist of copying the data into OAM quick snap.
 	call UpdateOAMFromWorldPosition
+
+	call TileMap_Update
 
 	jp 	Main
 
