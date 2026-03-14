@@ -145,7 +145,9 @@ TileMap_Update:
 	or	a
 	ret	z
 	ldh	a, [wColumnToLoad]
+	
 	call CopyColumnToTileMap
+
 	ret
 
 ;@param bc: new tile x
@@ -374,16 +376,15 @@ UpdateOAMFromWorldPosition:
 	; will always be fewer than 160 / 144 pixels, then we can actually
 	; ignore the high byte. But maybe it's an optimization.
 
-	
-	ld	a, [wWorldPosX]
-	ld	e, a
-	ld	a, [wWorldPosX + 1]
-	ld	d, a					; world pos X is now in de
+	ld	hl, wWorldPosX			; 3 cycles
+	ld	e, [hl]					; 2 cycles
+	inc	hl						; 2 cycles
+	ld	d, [hl]					; 2 cycles; world pos X is now in de
 
-	ld	a, [wCamPosX]
-	ld	c, a
-	ld	a, [wCamPosX + 1]
-	ld	b, a
+	ld	hl, wCamPosX
+	ld	c, [hl]
+	inc	hl
+	ld	b, [hl]					; wCamPosX is now in bc
 
 	; DE = DE - BC?
 
@@ -395,7 +396,6 @@ UpdateOAMFromWorldPosition:
 	sbc	b			;	a = d - b
 	ld	d, a		;	d = d - b
 
-
 	; de now contains the pixel position of the player, we now just have to add 8,
 	; so we have something to store in the OAM.
 
@@ -404,15 +404,15 @@ UpdateOAMFromWorldPosition:
 	ld	[STARTOF(OAM) + 0 + 1], a		; Top sprite, x position
 	ld	[STARTOF(OAM) + 4 + 1], a		; Bottom sprite, x position
 
-	ld	a, [wWorldPosY]
-	ld	e, a
-	ld	a, [wWorldPosY + 1]
-	ld	d, a
+	ld	hl, wWorldPosY
+	ld	e, [hl]
+	inc	hl
+	ld	d, [hl]		; wWorldPosY is now in de
 
-	ld	a, [wCamPosY]
-	ld	c, a
-	ld	a, [wCamPosY + 1]
-	ld	b, a
+	ld	hl, wCamPosY
+	ld	c, [hl]
+	inc	hl
+	ld	b, [hl]		; wCamPosY is now in bc
 
 	; DE = DE - BC again
 	ld	a, e
@@ -977,6 +977,9 @@ Init:
 	call InitGlobals
 	call TurnOnLCD
 	ret
+
+SECTION "ShadowOAM", WRAM0, ALIGN[8]
+wShadowOAM:			ds 160
 
 SECTION "Globals", WRAM0
 wSpeedPerFrameX:	db		; in subpixels (16 subpixel = 1 pixel)
