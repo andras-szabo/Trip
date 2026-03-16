@@ -342,13 +342,10 @@ Camera_Update:
     ld  [hl], c                 ; store low byte first
 
     ld  a, c
-    ldh [wBC], a                ; also store into wBC
-
     inc hl
     ld  [hl], b                 ; store high byte second
 
     ld  a, b
-    ld  [wBC + 1], a            ; also store into wBC
    
     pop bc
 

@@ -4,6 +4,7 @@ INCLUDE "input.inc"
 
 INCLUDE "camera.asm"
 INCLUDE "world.asm"
+INCLUDE "graphics.asm"
 
 DEF SUBPIXELS_PER_PIXEL EQU 16
 DEF MAX_TRACER_SPEED_SPF EQU 64
@@ -87,6 +88,7 @@ Main:
 	ld	b, a
 	
 	call Camera_Update
+	call UpdateShadowOAMFromWorldPosition
 
 	ld	a, [wCamTileDirty]
 	or	a
@@ -95,12 +97,10 @@ Main:
 
 .skip_shadow_map_update:
 	call WaitForVBlank
-	; Actually update OAM -------------------------------------------------------
-	;	 -- this should just consist of copying the data into OAM quick snap.
-	call UpdateOAMFromWorldPosition
 
-	call TileMap_Update
-
+    call TileMap_Update		; Update tile map from shadow tile map
+	call hOAMDMA			; Update DMA from shadow OAM
+	
 	jp 	Main
 
 ;---------------------------------------------------------------------------------
@@ -369,11 +369,13 @@ UpdateWorldPosition:
 	call AddWord
 	ret
 
-UpdateOAMFromWorldPosition:
+UpdateShadowOAMFromWorldPosition:
 	; I think that if we can guarantee that the player will always be
 	; on screen, and thus the difference between her and the camera
 	; will always be fewer than 160 / 144 pixels, then we can actually
 	; ignore the high byte. But maybe it's an optimization.
+
+	; Calculate tracer's x position, and put it in wB ------------------------
 
 	ld	hl, wWorldPosX			; 3 cycles
 	ld	e, [hl]					; 2 cycles
@@ -400,9 +402,12 @@ UpdateOAMFromWorldPosition:
 
 	ld	a, e	; let's just ignore "d"
 	add 8
-	ld	[STARTOF(OAM) + 0 + 1], a		; Top sprite, x position
-	ld	[STARTOF(OAM) + 4 + 1], a		; Bottom sprite, x position
+	ldh	[wB], a 	;ld	[STARTOF(OAM) + 0 + 1], a		; Top sprite, x position
+                    ;ld	[STARTOF(OAM) + 4 + 1], a		; Bottom sprite, x position
 
+	;------------------------------------------------------------------------
+
+	; Calculate Tracer's y positions, and put them into wA and wC   ---------
 	ld	hl, wWorldPosY
 	ld	e, [hl]
 	inc	hl
@@ -425,10 +430,29 @@ UpdateOAMFromWorldPosition:
 	; de now contains the pixel position of the player
 	ld	a, e	; ignoring the high byte
 	add 16
-	ld	[STARTOF(OAM) + 0 + 0], a		; Top sprite, y
+	ldh	[wA], a     ;ld	[STARTOF(OAM) + 0 + 0], a		; Top sprite, y
 	add 8
-	ld	[STARTOF(OAM) + 4 + 0], a		; Bottom sprite, y
+	ldh	[wC], a     ;ld	[STARTOF(OAM) + 4 + 0], a		; Bottom sprite, y
+    ;-----------------------------------------------------------------------
 
+
+	; Copy the sprite data, in wA, wB, and wC, to the shadow OAM -----------
+	ld	hl, tracer_sprites
+
+	ldh	a, [wA]					; top sprite
+	ld	[hli], a				; top sprite, y position
+
+	ldh	a, [wB]
+	ld	[hli], a				; top sprite, x position
+	inc	hl
+	inc	hl
+
+	ldh	a, [wC]
+	ld	[hli], a				; bottom sprite, y position
+	ldh	a, [wB]
+	ld	[hli], a				; bottom sprite, x position
+	;----------------------------------------------------------------------
+	
 	ret
 
 ;@param d: horizontal position delta, in pixels
@@ -798,7 +822,8 @@ ClearOAM:
 InitTracerSprite:
 	; Top half
 	xor	a
-	ld	hl, STARTOF(OAM)	; expecting Tracer's top sprite data to be at the start of OAM
+
+    ld  hl, tracer_sprites
 	ld	[hli], a
 	ld	[hli], a
 	ld	[hli], a
@@ -969,11 +994,16 @@ Init:
 	call CopyTileDataIntoVRAM
 	call InitShadowMap
 	call CopyInitialShadowMapToTileMap
+
 	;call SetupTileMap
+
 	call CopySpriteDataIntoVRAM
 	call ClearOAM
 	call InitTracerSprite
 	call InitGlobals
+	
+	call CopyDmaRoutineToHRam
+
 	call TurnOnLCD
 	ret
 
@@ -1001,9 +1031,9 @@ wCurrentPosDeltaX:	db
 wCurrentPosDeltaY:	db
 
 wA:					db		; hi ram shadow registers,
-wBC:				dw		; so we can save temp copies
-wDE:				dw		; without going thru the
-wHL:				dw		; stack
+wB:					db		; so we can save temp copies
+wC:					db		; without going thru the
+wD:					db		; stack
 
 wColumnToLoad:		db
 
