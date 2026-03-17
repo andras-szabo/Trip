@@ -6,6 +6,120 @@ SECTION "ShadowMapBuffer", WRAM0
 wShadowMapBuffer:    ds  SHADOW_MAP_BUFFER_SIZE
 
 SECTION "WorldCode", ROM0
+
+;@return hl, the address of the tile in question, in the shadow map
+GetShadowMapTileFromWorldPosition:
+    ; Take the world position
+    ; subtract the camera position
+    ; subtract the scroll amount
+    ; THEN divide by 8
+
+    ; ------------------------------------------ Calculate X absolute tile position ---------
+    ld  hl, wWorldPosX
+    ld  e, [hl]
+    inc hl
+    ld  d, [hl]         ; wWorldPosX is now in de
+
+    ld  hl, wCamPosX
+    ld  c, [hl]
+    inc hl
+    ld  b, [hl]         ; wCamPosX is now in bc
+
+    ; DE = DE - BC
+
+    ld  a, e
+    sub c
+    ld  e, a        ; e = e - c
+
+    ld  a, d
+    sbc b
+    ld  d, a        ; d = d - b (with carry)
+
+    ld  a, [wCurrentHScroll]    ; current horizontal scroll value [0-255]
+    ld  c, a
+    ld  b, 0
+
+    ; DE = DE - BC, AGAIN
+
+    ld  a, e
+    sub c
+    ld  e, a
+
+    ld  a, d
+    sbc b
+    ld  d, a
+
+    ; DE now contains the pixel position of the player, in "shadow map coordinates";
+    ; i.e. as if we were not scrolled, and 0,0 was at tile (0, 0). So we need to divide
+    ; by 8 to get the actual tile position.
+
+    sra d           ; shift right arithmetically
+    rr  e           ; rotate 1 right, using carry
+    sra d
+    rr  e
+    sra d
+    rr  e
+
+    ld  a, e
+    ldh [wA], a
+    ; wA now contains the tile X position. ---------------------------------------------
+
+    ld  hl, wWorldPosY
+    ld  e, [hl]
+    inc hl
+    ld  d, [hl]             ; wWorldPosY is now in de
+
+    ld  hl, wCamPosY
+    ld  c, [hl]
+    inc hl
+    ld  b, [hl]             ; wCamPosY is now in bc
+
+    ld  a, e
+    sub c
+    ld  e, a                ; e = e - c
+
+    ld  a, d
+    sbc b
+    ld  d, a                ; d = d - (b + carry)
+
+    ld  a, [wCurrentVScroll]
+    ld  c, a
+    ld  b, 0
+
+    ld  a, e
+    sub c
+    ld  e, a                ; e = e - c, again
+
+    ld  a, d
+    sbc b
+    ld  d, a                ; d = d - a, again
+
+    ; DE now contains player Y position in shadow map coordinates (= absolute pixels). We need
+    ; to divide by 8, but then we'll multiply by 32, so we might as well just:
+    ; clear the bottom 3 bits, and shift left 2x
+
+    ld  a, e
+    and a, %11111000
+    ld  e, a
+
+    ld  h, d
+    ld  l, e
+    add hl, hl      ; hl now contains (tile pos y * 8 * 2)
+    add hl, hl      ; hl now contains (tile pos y * 8 * 2 * 2) = tile pos y * 32
+
+    ldh a, [wA]     ; a now contains x in tiles
+    add a, l        ; a = [wA] + l
+    ld  l, a        ; hl = (y * 32) + [wA], except the high byte is not yet set
+
+    adc a, h        ; a = ([wa] + l) + h + carry
+    sub a, l        ; a = h + carry
+    ld  h, a        ; h = h + carry          l = [wa] + l
+    
+    ld  bc, wShadowMapBuffer
+    add hl, bc
+
+    ret
+
 ;@param [wCamMoveDelta]     - in which direction have we moved? low bits: DOWN|UP|RIGHT|LEFT
 ;@param [wCamTileDirty]     - did we move to a new tile?
 ;@param [wCamTilePosX]      - cam tile pos x

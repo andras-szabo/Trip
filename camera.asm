@@ -20,6 +20,9 @@ SECTION "CameraVariables", WRAM0
                             ; bit 2: moved up
                             ; bit 3: moved down
 
+    wCurrentHScroll: db
+    wCurrentVScroll: db
+
     wFrameLeftDelta: db     ; Distance from cam pos to the left of the frame
     wFrameRightDelta: db    ; Distance from the right side of the screen to the right side of the frame; must fit into 1 byte!
     wDeadZoneWidth: dw       ; horizontal deadzone can technically be 160 pixels; vertical 144, so...
@@ -100,6 +103,9 @@ Camera_Init_Position:
     ld  [hl], e
     inc hl
     ld  [hl], d
+
+    xor a
+    ld  [wCurrentHScroll], a
 
     call UpdateCamTilePos
 

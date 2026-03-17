@@ -1,6 +1,6 @@
-SECTION "Shadow OAM", WRAM0[$C100]
+SECTION "Shadow OAM", WRAM0[$C100], ALIGN[8]
 
-tracer_sprites:	ds	2 * 4			; 2 sprites, 4 bytes of data each
+wShadowOAM:		ds	40 * 4			;  10 sprites, 4 bytes of data each
 
 SECTION "DMA routine", ROM0
 

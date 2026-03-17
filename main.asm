@@ -70,7 +70,7 @@ Main:
 	; so we can't use that during PPU update.
 	; might we get around by storing it in shadowOAM?
 	; I think we should.
-	;call CheckWallCollisions	; d and e now contain _updated_ horizontal position delta
+	call CheckWallCollisions	; d and e now contain _updated_ horizontal position delta
 
 	; Update world positions
 	call UpdateWorldPosition
@@ -136,6 +136,7 @@ TileMap_Update:
 	ld	a, l
 	add	b
 	ld	[$FF43], a					; update the horizontal scroll register
+	ld	[wCurrentHScroll], a		; ... and wCurrentHScroll
 
 	; TODO: only write column into tile map if we actually
 	; 		moved to a new tile
@@ -437,7 +438,7 @@ UpdateShadowOAMFromWorldPosition:
 
 
 	; Copy the sprite data, in wA, wB, and wC, to the shadow OAM -----------
-	ld	hl, tracer_sprites
+	ld	hl, wShadowOAM
 
 	ldh	a, [wA]					; top sprite
 	ld	[hli], a				; top sprite, y position
@@ -616,9 +617,6 @@ IsWallTile:
 ;@return d: updated horizontal position delta
 ;@return e: updated vertical position delta
 CheckWallCollisions:
-
-	; TODO: This should not actually read from STARTOF(OAM),
-	; 		but instead use the WRAM copies
 
 	; ... and we should update this so it can work w/ 16-bit
 	; positional values.
@@ -820,10 +818,13 @@ ClearOAM:
 	ret
 
 InitTracerSprite:
+	ld  hl, wShadowOAM
+	ld	bc, 160
+	call MemClear
+
 	; Top half
 	xor	a
-
-    ld  hl, tracer_sprites
+	ld	hl, wShadowOAM
 	ld	[hli], a
 	ld	[hli], a
 	ld	[hli], a
@@ -1006,9 +1007,6 @@ Init:
 
 	call TurnOnLCD
 	ret
-
-SECTION "ShadowOAM", WRAM0, ALIGN[8]
-wShadowOAM:			ds 160
 
 SECTION "Globals", WRAM0
 wSpeedPerFrameX:	db		; in subpixels (16 subpixel = 1 pixel)
