@@ -72,6 +72,12 @@ CapAbsoluteValue:
 	ld	[hl], a
 	ret
 
+
+GetTileByWorldPosition:
+	; To convert world pos to tile pos:
+	; 
+	ret
+
 ; GetTileByPixel
 ; Converts a pixel position to a tilemap address
 ; hl = $9800 + X + Y * 32

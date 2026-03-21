@@ -6,6 +6,8 @@ INCLUDE "camera.asm"
 INCLUDE "world.asm"
 INCLUDE "graphics.asm"
 
+INCLUDE "variables.asm"
+
 DEF SUBPIXELS_PER_PIXEL EQU 16
 DEF MAX_TRACER_SPEED_SPF EQU 64
 DEF DEFAULT_ACCELERATION EQU 8
@@ -70,7 +72,10 @@ Main:
 	; so we can't use that during PPU update.
 	; might we get around by storing it in shadowOAM?
 	; I think we should.
-	call CheckWallCollisions	; d and e now contain _updated_ horizontal position delta
+	;call CheckWallCollisions	; d and e now contain _updated_ horizontal position delta
+
+	; /// testing
+	call CheckWallCollisions_Updated
 
 	; Update world positions
 	call UpdateWorldPosition
@@ -616,6 +621,108 @@ IsWallTile:
 ;@param e: vertical position delta
 ;@return d: updated horizontal position delta
 ;@return e: updated vertical position delta
+CheckWallCollisions_Updated:
+	; 1. call GetShadowMapTileFromWorldPosition;
+	;	 which will use the world position and camera
+	;	 position, and scroll amount, to calculate
+	;	 the tile where the player is right now;
+	;	 and return the tile address in hl; which is
+	;	 pointing into the shadow map.
+	;
+	;	 Because that tile calculation looks costly,
+	;	 maybe we can just keep that address, and do
+	;	 checks by manipulating it by hand:
+	;	 tiles in the same row are just -1 and +1;
+	;	 the tile up is that address -32, the tile below
+	;	 is just that address +32. Should be easy, no? o.O
+	;
+	; 2. check the sign of d to see if we are moving left
+	;	 or right. In each case, start looping through the
+	;	 tiles in that direction, until possible (not going
+	;    out of shadow map bounds), and tiles are empty;
+	;	 if found one that's not empty, then cap d there.
+	;
+	; 3. do the same for e for vertical movement.
+
+	push de
+
+	call GetShadowMapTileFromWorldPosition
+	ld	a, h
+	ld	[wH], a
+	ld	a, l
+	ld	[wL], a
+
+	pop de
+
+	xor	a
+	ldh	[wTilesMoved], a
+
+	ld	a, d
+	or	a
+	jr	z, .DoneCheckingHorizontalDelta					; if d == 0, no need to check anything
+
+	ld	a, [wWorldPosX]
+	and	a, %00000111
+	ldh	[wCurrentPixelOffset], a
+
+	bit	7, d
+	jr	nz, .CheckGoingLeft
+
+	add	d												; a = wCurrentPixelOffset + horizontal delta
+	cp	8												; if this puts us on a new tile, we need to
+	jr	c, .DoneCheckingHorizontalDelta					; check; otherwise - nope
+
+	ldh	[wTotalPixels], a
+
+.CheckNextTileToTheRight:
+	inc	hl
+	ld	a, [hl]
+	ld  [wTileData], a
+	or	a				; TODO check w/ WALL_TILE
+	jr	nz, .ClampRightAndDone
+
+	ldh	a, [wTilesMoved]
+	inc	a
+	ldh	[wTilesMoved], a
+
+	ldh	a, [wTotalPixels]
+	sub	8
+	ldh	[wTotalPixels], a
+
+	jr	nc, .CheckNextTileToTheRight
+	jr	.DoneCheckingHorizontalDelta
+
+.ClampRightAndDone:
+	ld	a, [wCurrentPixelOffset]
+	ld	b, a
+	ldh	a, [wTilesMoved]
+
+	sla	a
+	sla	a
+	sla	a
+	sub	b
+
+	ld	d, a
+	bit	7, d
+	jr	z, .DoneCheckingHorizontalDelta
+	ld	d, 0
+	jr	.DoneCheckingHorizontalDelta
+
+.CheckGoingLeft:
+	; TODO
+
+.DoneCheckingHorizontalDelta:
+	ld	a, [wH]
+	ld	h, a			; just in case we'll need
+	ld	a, [wL]
+	ld	l, a			; these for vertical checks
+
+	ret
+
+;@param d: horizontal position delta
+;@param e: vertical position delta
+;@return d: updated horizontal position delta
+;@return e: updated vertical position delta
 CheckWallCollisions:
 
 	; ... and we should update this so it can work w/ 16-bit
@@ -946,6 +1053,11 @@ InitGlobals:
 	ld	[wCurrentSubPixelX], a
 	ld	[wCurrentSubPixelY], a
 
+	ld	[wCurrentHScroll], a
+	ld	[wCurrentVScroll], a
+
+	ldh	[wTilesMoved], a
+
 	ld	a, DEFAULT_ACCELERATION
 	ld	[wAcceleration], a
 
@@ -1008,8 +1120,9 @@ Init:
 	call TurnOnLCD
 	ret
 
-SECTION "Globals", WRAM0
-wSpeedPerFrameX:	db		; in subpixels (16 subpixel = 1 pixel)
+/*
+SECTION "Globals", WRAM-1
+wSpeedPerFrameX:	db		; in subpixels (15 subpixel = 1 pixel)
 wSpeedPerFrameY:	db
 wCurrentSubPixelX:	db
 wCurrentSubPixelY:	db
@@ -1022,7 +1135,7 @@ wJumpStrength:		db		; starting vertical acceleration, sp/frame
 wFriction:			db		; reducing lateral movement speed, sp/frame
 wGravity:			db		; sp/frame, to be applied on the y axis
 
-SECTION "Foo", HRAM[$FF80]
+SECTION "Foo", HRAM[$FF79]
 wCurrentAccX:		db
 wCurrentAccY:		db
 wCurrentPosDeltaX:	db
@@ -1032,12 +1145,16 @@ wA:					db		; hi ram shadow registers,
 wB:					db		; so we can save temp copies
 wC:					db		; without going thru the
 wD:					db		; stack
+wE:					db
+wH:					db
+wL:					db
 
 wColumnToLoad:		db
 
-SECTION "Input variables", WRAM0
+SECTION "Input variables", WRAM-1
 wCurKeys:	db
 wNewKeys:	db
+	*/
 
 SECTION "Tile data", ROM0
 

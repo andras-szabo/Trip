@@ -8,13 +8,15 @@ wShadowMapBuffer:    ds  SHADOW_MAP_BUFFER_SIZE
 SECTION "WorldCode", ROM0
 
 ;@return hl, the address of the tile in question, in the shadow map
+;@uses a, b, c, d, e,
 GetShadowMapTileFromWorldPosition:
     ; Take the world position
     ; subtract the camera position
-    ; subtract the scroll amount
+    ; add the scroll amount
     ; THEN divide by 8
 
     ; ------------------------------------------ Calculate X absolute tile position ---------
+
     ld  hl, wWorldPosX
     ld  e, [hl]
     inc hl
@@ -39,14 +41,14 @@ GetShadowMapTileFromWorldPosition:
     ld  c, a
     ld  b, 0
 
-    ; DE = DE - BC, AGAIN
+    ; DE = DE + BC, AGAIN
 
     ld  a, e
-    sub c
+    add c
     ld  e, a
 
     ld  a, d
-    sbc b
+    adc b
     ld  d, a
 
     ; DE now contains the pixel position of the player, in "shadow map coordinates";
@@ -61,8 +63,11 @@ GetShadowMapTileFromWorldPosition:
     rr  e
 
     ld  a, e
+    and a, %0001_1111   ; mod 32
     ldh [wA], a
     ; wA now contains the tile X position. ---------------------------------------------
+    ; let's save this out for debugging
+    ldh [wTilePosX], a
 
     ld  hl, wWorldPosY
     ld  e, [hl]
@@ -87,12 +92,27 @@ GetShadowMapTileFromWorldPosition:
     ld  b, 0
 
     ld  a, e
-    sub c
+    add c
     ld  e, a                ; e = e - c, again
 
     ld  a, d
-    sbc b
+    adc b
     ld  d, a                ; d = d - a, again
+
+    push de
+    ; Divide by 8 for debugging
+    sra d           ; shift right arithmetically
+    rr  e           ; rotate 1 right, using carry
+    sra d
+    rr  e
+    sra d
+    rr  e
+
+    ld  a, e
+    and a, %0001_1111   ; mod 32
+    ld [wTilePosY], a
+    ;---------------------------------------------------
+    pop de
 
     ; DE now contains player Y position in shadow map coordinates (= absolute pixels). We need
     ; to divide by 8, but then we'll multiply by 32, so we might as well just:
