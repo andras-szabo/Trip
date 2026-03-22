@@ -354,4 +354,17 @@ InitShadowMap:
     or  c
     jr  nz, .next_tile
 
+    ; Just a test: set column 2 blocking
+    ld  hl, wShadowMapBuffer
+    inc hl
+    ld  bc, 32
+    ld  d, 32
+    ld  a, 1
+
+.next_foo:
+    ld  [hl], a
+    add hl, bc
+    dec d
+    jr  nz, .next_foo
+
     ret

@@ -667,8 +667,53 @@ CheckWallCollisions_Updated:
 	ld	b, a											; keep [wCurrentPixelOffset] in b for later
 
 	bit	7, d
-	jr	nz, .CheckGoingLeft
+	jr	z, .CheckGoingRight
 
+.CheckGoingLeft:
+	add	d	; a = wCurrentPixelOffset + (negative) horizontal delta
+	bit	7, a								; if this is negative,
+	jr	z, .DoneCheckingHorizontalDelta		; we moved to a different tile, so we'll check, otherwise not
+	ldh	[wTotalPixels], a
+
+.CheckNextTileToTheLeft:
+	dec	hl
+	ld	a, [hl]
+	ld	[wTileData], a
+	or	a					; TODO check with WALL_TILE
+	jr	nz, .ClampLeftAndDone
+
+	ldh	a, [wTilesMoved]
+	inc	a
+	ldh	[wTilesMoved], a
+
+	ldh	a, [wTotalPixels]
+	add	8
+	ldh	[wTotalPixels], a
+
+	bit	7, a
+	jr	nz, .CheckNextTileToTheLeft
+	jr	.DoneCheckingHorizontalDelta
+.ClampLeftAndDone:
+	ldh	a, [wTilesMoved]
+	sla	a
+	sla	a
+	sla	a
+	cpl	
+	add	b
+	inc a
+
+	ld	d, a
+	bit	7, d		; if we're still negative, we're good
+	jr	nz, .DoneCheckingHorizontalDelta
+	or	a			
+	jr	z, .DoneCheckingHorizontalDelta
+	
+	xor	a			; clamp d to (-initial pixel offset)
+	sub b
+	ld	d, a
+	jr	.DoneCheckingHorizontalDelta
+
+.CheckGoingRight:
 	add	d												; a = wCurrentPixelOffset + horizontal delta
 	cp	8												; if this puts us on a new tile, we need to
 	jr	c, .DoneCheckingHorizontalDelta					; check; otherwise - nope
@@ -709,9 +754,6 @@ CheckWallCollisions_Updated:
 	dec a
 	ld	d, a
 	jr	.DoneCheckingHorizontalDelta
-
-.CheckGoingLeft:
-	; TODO
 
 .DoneCheckingHorizontalDelta:
 	ld	a, [wH]
