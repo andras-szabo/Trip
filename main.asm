@@ -664,6 +664,7 @@ CheckWallCollisions_Updated:
 	ld	a, [wWorldPosX]
 	and	a, %00000111
 	ldh	[wCurrentPixelOffset], a
+	ld	b, a											; keep [wCurrentPixelOffset] in b for later
 
 	bit	7, d
 	jr	nz, .CheckGoingLeft
@@ -693,8 +694,6 @@ CheckWallCollisions_Updated:
 	jr	.DoneCheckingHorizontalDelta
 
 .ClampRightAndDone:
-	ld	a, [wCurrentPixelOffset]
-	ld	b, a
 	ldh	a, [wTilesMoved]
 
 	sla	a
@@ -705,7 +704,10 @@ CheckWallCollisions_Updated:
 	ld	d, a
 	bit	7, d
 	jr	z, .DoneCheckingHorizontalDelta
-	ld	d, 0
+	ld	a, 8
+	sub	b
+	dec a
+	ld	d, a
 	jr	.DoneCheckingHorizontalDelta
 
 .CheckGoingLeft:
