@@ -1,0 +1,34 @@
+Courtesy of Gemini, but I think it actually makes sense.
+
+"Executing game logic while the screen is being rendered isn't just 'safe', it's essentially required. If you only ran logic during v-blank, your game would likely crawl at a snail's pace.
+
+Here is a breakdown of how the Game Boy handles its business while the "lights are on."
+
+The golden rule of the PPU
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Game Boy's PPU is a bit of a resource hog. When it's actively drawing a line, it needs constant access to the VRAM and OAM. If the CPU tries to touch that memory at the same time, the PPU usually wins, and the CPU gets garbage or is simply locked out.
+
+What is safe to do?
+
+While the PPU is busy (modes 2 and 3), the CPU is free to do anything that doesn't involve the video memory bus. This includes:
+
+* Game logic
+* WRAM access: reading and writing to work ram ($C000 - $DFFF)
+* HRAM access: reading and writing to high ram ($FF80 - $FFFE). This is the fastest memory on the system.
+* ROM access: reading instructions or data constants.
+* Audio: updating the sound registers ($FF10-$FF26)
+* Input: reading the joypad state ($FF00)
+
+The standard loop
+~~~~~~~~~~~~~~~~~
+
+Most GB games follow a specific rhythm to maximize efficiency:
+1. V-Blank (Mode 1): The crazy dash. You have about 1.1 ms to shove as much data into
+	VRAM and OAM as possible (updating tile maps, reloading sprites via DMA).
+2. Active display (Modes 3, 3, 0): The "thinking phase". While the PPU is drawing, the CPU calculates everything for the next frame. You store new positions in WRAM ("shadow registers"), waiting for the next V-Blank to copy them over.
+
+
+Pro-tip: the OAM DMA
+
+Since V-Blank is so short, almost every developer uses the OAM DMA ($FF46). You write a small routine to HRAM that copies a 160-byte "shadow OAM" from WRAM to the real OAM. It's significantly faster than manual ld instructions, and is the standard way to handle sprites.

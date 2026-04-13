@@ -1,0 +1,118 @@
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TODO - 7 March, 2026
+
+- Implement a dynamic "load world tile into tilemap" method:
+	
+	- declare loaded_min_x, loaded_max_x, loaded_min_y, loaded_max_y
+		-> what part of the world is already loaded into tile map
+
+	- declare required_min_x, required_max_x, required_min_y, required_max_y
+		-> what part of the world do we need to load right now
+
+	- then the algorithm should be:
+
+		- for x : required_min_x -> required_max_x
+			for y : required_min_y -> required_max_y
+				if (loaded_min_x <= x &&
+					loaded_max_x >= x &&
+					loaded_min_y <= y &&
+					loaded_max_y >= y)
+					{
+						continue;
+					}
+
+				tileID = GetWorldTileID(x, y);
+				LoadIntoTileMap(start_tilemap_offset_x + x,
+								start_tilemap_offset_y + y,	
+								tileID);
+			loaded_min_x = required_min_x	
+			loaded_max_x = required_max_x
+			loaded_min_y = required_min_y
+			loaded_max_y = required_max_y
+
+	- Turns out that this would be prohibitively expensive; although some version of this
+	  can be used to initialize the map, or when teleporting.
+
+	- So let's use some version of the "seam" algorithm instead:
+	- keep track of min, max on screen columns and rows, and only load those, when the
+	  scroll position changes an 8 pixel boundary. Something like:
+
+	// new_tile_x: camera's position in tiles
+	if (new_tile_x > old_tile_x)
+	{
+		// Player moved right; update the new column on the right edge
+		target_column = (new_tile_x + 20) % 32; 
+		world_x_to_load = new_tile_x + 20;
+
+		for (int y = 0; y < 18; ++y)
+		{
+			tileID = GetWorldTileID(world_x_to_load, current_tile_y + y);
+			WriteToVRAM(target_column, (current_tile_y + y) % 32, tileID);
+		}
+	}
+
+	// ... and so on for the other directions.
+
+	World Coordinate (tile_x, tile_y) to Vram address:
+
+	uint16_t CalculateVRAMAddr(uint16_t tileX, uint16_t tileY)
+	{
+		return 0x9800 + ((ty & 31) << 5) + (tx & 31);
+	}
+
+	// ... says Gemini, and who am I to disagree.
+
+	= OK, so based on this, todo right now - just implement scroll right / left
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TODO - 28 February, 2026
+
+o fix position update
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TODO - 26 February, 2026
+
+o tackle scrolling and camera things, conceptually
+o play around with 16 bit positions
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TODO - 25 February, 2026
+
+o collision detection w/ background tiles
+	o go thru "GetTileByPixel" and comment it so it's clear what / how it does
+	o detect collisions
+	o calculate valid out-of-wall projection, use that to move
+
+o jumping & gravity
+	o well, how to do jumping?, the simplest way?
+	o so long as some button is pressed, set vertical velocity
+	  to some value
+	o then, keep track of ground / air state
+	o then, if in the air, allow upwards acceleration for some
+	  time (but perhaps dissipating acceleration)
+	o after jump time is over, and in the air, apply gravity
+	  
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TODO - 24 February, 2026
+
+o set up git repo
+o push it to GitHub
+o create readme
+o set up main.asm
+	o initialize screen and stuff
+	o define tiles:
+		o 0: empty tile
+		o 1: full with color 1
+		o 2: full with color 2
+		o 3: full with color 3
+	
+	o define tilemap, but procedurally:
+		o top row, bottom row, edges on the
+		  first screen should all have tile 1,
+		  otherwise empty.
+
+o add a 2x1 sprite (2 rows, 1 col)
+o move it around using subpixel velocity; horizontally
+
