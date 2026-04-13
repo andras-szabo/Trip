@@ -1,5 +1,5 @@
 SUMMARY:
-	ROM0: 2572 bytes used / 13812 free
+	ROM0: 2499 bytes used / 13885 free
 	WRAM0: 1226 bytes used / 2870 free
 	HRAM: 29 bytes used / 98 free
 
@@ -29,7 +29,7 @@ ROM0 bank #0:
 	         $00e4 = DmaRoutine.loop
 	         $00e8 = DmaRoutineEnd
 	EMPTY: $00e8-$00ff ($0018 bytes)
-	SECTION: $0100-$0666 ($0567 bytes) ["Header"]
+	SECTION: $0100-$061d ($051e bytes) ["Header"]
 	         $0150 = EntryPoint
 	         $0153 = PreMain
 	         $015a = Main
@@ -50,114 +50,111 @@ ROM0 bank #0:
 	         $02ee = UpdateOAM
 	         $0305 = UpdateInput
 	         $0319 = UpdateVerticalAcceleration
-	         $0331 = UpdateHorizontalAcceleration
-	         $0345 = UpdateHorizontalAcceleration.CheckRight
-	         $0357 = UpdateHorizontalAcceleration.ApplyFriction
-	         $036a = UpdateHorizontalAcceleration.ApplyNegativeFriction
-	         $0370 = UpdateHorizontalAcceleration.CheckForOvershoot
-	         $037b = IsWallTile
-	         $037e = CheckWallCollisions_Updated
-	         $039e = CheckWallCollisions_Updated.CheckGoingLeft
-	         $03a5 = CheckWallCollisions_Updated.CheckNextTileToTheLeft
-	         $03be = CheckWallCollisions_Updated.ClampLeftAndDone
-	         $03d6 = CheckWallCollisions_Updated.CheckGoingRight
-	         $03dd = CheckWallCollisions_Updated.CheckNextTileToTheRight
-	         $03f4 = CheckWallCollisions_Updated.ClampRightAndDone
-	         $0409 = CheckWallCollisions_Updated.DoneCheckingHorizontalDelta
-	         $0425 = CheckWallCollisions_Updated.CheckGoingUp
-	         $0428 = CheckWallCollisions_Updated.CheckNextTileAbove
-	         $0448 = CheckWallCollisions_Updated.ClampUpAndDone
-	         $0460 = CheckWallCollisions_Updated.CheckGoingDown
-	         $046f = CheckWallCollisions_Updated.CheckNextTileBelow
-	         $048d = CheckWallCollisions_Updated.ClampDownAndDone
-	         $049e = CheckWallCollisions_Updated.DoneCheckingVerticalDelta
-	         $049f = CheckWallCollisions
-	         $04bf = CheckWallCollisions.SkipWallCheckOnBottom
-	         $04d1 = CheckWallCollisions.CheckHorizontal
-	         $04e4 = CheckWallCollisions.SkipWallCheckOnRight
-	         $04f4 = IntegrateAcceleration
-	         $04fd = IntegrateAcceleration.ContinueWithNonZeroSpeed
-	         $050e = IntegrateAcceleration.SubPixelLoopLeft
-	         $0517 = IntegrateAcceleration.SubPixelLoopRight
-	         $0518 = IntegrateAcceleration.SubPixelLoopRight2
-	         $0521 = IntegrateAcceleration.MoveNext
-	         $0529 = IntegrateAcceleration.CalculatePositionDelta
-	         $052a = IntegrateAcceleration.CalculatePositionDeltaLoop
-	         $0530 = CopyTileDataIntoVRAM
-	         $053d = CopySpriteDataIntoVRAM
-	         $054a = ClearOAM
-	         $0554 = InitTracerSprite
-	         $056d = CopyInitialShadowMapToTileMap
-	         $057a = SetupTileMap
-	         $0580 = SetupTileMap.ClearLoop
-	         $058d = SetupTileMap.TopLoop
-	         $059b = SetupTileMap.BottomLoop
-	         $05ac = SetupTileMap.LeftLoop
-	         $05bb = SetupTileMap.RightLoop
-	         $05c9 = SetupTileMap.MiddlePlatformLoop
-	         $05d0 = WaitForVBlank
-	         $05d8 = ShutdownAudio
-	         $05dd = TurnOnLCD
-	         $05ed = TurnOffLCD
-	         $05f2 = InitGlobals
-	         $0642 = Init
-	SECTION: $0667-$08de ($0278 bytes) ["CameraCode"]
-	         $0667 = Camera_Init_Position
-	         $066e = Camera_Init_Position.x_non_negative
-	         $0675 = Camera_Init_Position.y_non_negative
-	         $0695 = UpdateCamTilePos
-	         $06b3 = UpdateCamTilePos.x_is_dirty
-	         $06c0 = UpdateCamTilePos.check_y
-	         $06da = UpdateCamTilePos.y_is_dirty
-	         $06e7 = UpdateCamTilePos.done
-	         $06e8 = Camera_Init_Deadzone
-	         $0733 = Camera_Update
-	         $0776 = Camera_Update.leftPositive_u1
-	         $077c = Camera_Update.sameSign_u1
-	         $0782 = Camera_Update.done_u1
-	         $0788 = Camera_Update.AdjustToFrameLeft
-	         $0799 = Camera_Update.signExtendLeft
-	         $07a3 = Camera_Update.tmp_jmp_01
-	         $07b3 = Camera_Update.FrameLeftOK
-	         $07dd = Camera_Update.leftPositive_u2
-	         $07e3 = Camera_Update.sameSign_u2
-	         $07e9 = Camera_Update.done_u2
-	         $07ed = Camera_Update.AdjustToFrameRight
-	         $0804 = Camera_Update.tmp_jmp_02
-	         $0810 = Camera_Update.AdjustVerticalPosition
-	         $0810 = Camera_Update.FrameRightOK
-	         $0831 = Camera_Update.leftPositive_u3
-	         $0837 = Camera_Update.sameSign_u3
-	         $083d = Camera_Update.done_u3
-	         $0843 = Camera_Update.AdjustToFrameTop
-	         $0854 = Camera_Update.signExtendTop
-	         $0860 = Camera_Update.tmp_jmp_03
-	         $0871 = Camera_Update.FrameTopOK
-	         $089b = Camera_Update.leftPositive_u4
-	         $08a1 = Camera_Update.sameSign_u4
-	         $08a7 = Camera_Update.done_u4
-	         $08ab = Camera_Update.AdjustToFrameBottom
-	         $08c1 = Camera_Update.tmp_jmp_04
-	         $08cf = Camera_Update.VerticalDone
-	SECTION: $08df-$0a23 ($0145 bytes) ["WorldCode"]
-	         $08df = GetShadowMapTileFromWorldPosition
-	         $0956 = UpdateShadowMap
-	         $0964 = UpdateShadowMap.not_moved_right
-	         $096d = UpdateShadowMap.x_delta_is_set
-	         $0982 = UpdateShadowMap.skip_sign_extend_hl
-	         $09aa = UpdateShadowMap.column_copy_loop
-	         $09c1 = UpdateShadowMap.skip_offset_carry
-	         $09cb = UpdateShadowMap.not_moved_along_x
-	         $09cc = CopyColumnToTileMap
-	         $09d8 = CopyColumnToTileMap.next_row
-	         $09e1 = CopyColumnToTileMap.skip_src_carry
-	         $09e8 = CopyColumnToTileMap.skip_dst_carry
-	         $09ec = InitShadowMap
-	         $09f4 = InitShadowMap.next_tile
-	         $0a0f = InitShadowMap.next_foo
-	         $0a1f = InitShadowMap.next_bar
-	EMPTY: $0a24-$3fff ($35dc bytes)
-	TOTAL EMPTY: $35f4 bytes
+	         $0330 = UpdateHorizontalAcceleration
+	         $0344 = UpdateHorizontalAcceleration.CheckRight
+	         $0356 = UpdateHorizontalAcceleration.ApplyFriction
+	         $0369 = UpdateHorizontalAcceleration.ApplyNegativeFriction
+	         $036f = UpdateHorizontalAcceleration.CheckForOvershoot
+	         $037a = IsWallTile
+	         $037d = CheckWallCollisions_Updated
+	         $039b = CheckWallCollisions_Updated.CheckGoingLeft
+	         $03a2 = CheckWallCollisions_Updated.CheckNextTileToTheLeft
+	         $03bb = CheckWallCollisions_Updated.ClampLeftAndDone
+	         $03d3 = CheckWallCollisions_Updated.CheckGoingRight
+	         $03da = CheckWallCollisions_Updated.CheckNextTileToTheRight
+	         $03f0 = CheckWallCollisions_Updated.ClampRightAndDone
+	         $0403 = CheckWallCollisions_Updated.DoneCheckingHorizontalDelta
+	         $042c = CheckWallCollisions_Updated.CheckNextTileDown
+	         $0447 = CheckWallCollisions_Updated.ClampDownAndDone
+	         $0455 = CheckWallCollisions_Updated.CheckGoingUp
+	         $0455 = CheckWallCollisions_Updated.DoneCheckingVerticalDelta
+	         $0456 = CheckWallCollisions
+	         $0476 = CheckWallCollisions.SkipWallCheckOnBottom
+	         $0488 = CheckWallCollisions.CheckHorizontal
+	         $049b = CheckWallCollisions.SkipWallCheckOnRight
+	         $04ab = IntegrateAcceleration
+	         $04b4 = IntegrateAcceleration.ContinueWithNonZeroSpeed
+	         $04c5 = IntegrateAcceleration.SubPixelLoopLeft
+	         $04ce = IntegrateAcceleration.SubPixelLoopRight
+	         $04cf = IntegrateAcceleration.SubPixelLoopRight2
+	         $04d8 = IntegrateAcceleration.MoveNext
+	         $04e0 = IntegrateAcceleration.CalculatePositionDelta
+	         $04e1 = IntegrateAcceleration.CalculatePositionDeltaLoop
+	         $04e7 = CopyTileDataIntoVRAM
+	         $04f4 = CopySpriteDataIntoVRAM
+	         $0501 = ClearOAM
+	         $050b = InitTracerSprite
+	         $0524 = CopyInitialShadowMapToTileMap
+	         $0531 = SetupTileMap
+	         $0537 = SetupTileMap.ClearLoop
+	         $0544 = SetupTileMap.TopLoop
+	         $0552 = SetupTileMap.BottomLoop
+	         $0563 = SetupTileMap.LeftLoop
+	         $0572 = SetupTileMap.RightLoop
+	         $0580 = SetupTileMap.MiddlePlatformLoop
+	         $0587 = WaitForVBlank
+	         $058f = ShutdownAudio
+	         $0594 = TurnOnLCD
+	         $05a4 = TurnOffLCD
+	         $05a9 = InitGlobals
+	         $05f9 = Init
+	SECTION: $061e-$0895 ($0278 bytes) ["CameraCode"]
+	         $061e = Camera_Init_Position
+	         $0625 = Camera_Init_Position.x_non_negative
+	         $062c = Camera_Init_Position.y_non_negative
+	         $064c = UpdateCamTilePos
+	         $066a = UpdateCamTilePos.x_is_dirty
+	         $0677 = UpdateCamTilePos.check_y
+	         $0691 = UpdateCamTilePos.y_is_dirty
+	         $069e = UpdateCamTilePos.done
+	         $069f = Camera_Init_Deadzone
+	         $06ea = Camera_Update
+	         $072d = Camera_Update.leftPositive_u1
+	         $0733 = Camera_Update.sameSign_u1
+	         $0739 = Camera_Update.done_u1
+	         $073f = Camera_Update.AdjustToFrameLeft
+	         $0750 = Camera_Update.signExtendLeft
+	         $075a = Camera_Update.tmp_jmp_01
+	         $076a = Camera_Update.FrameLeftOK
+	         $0794 = Camera_Update.leftPositive_u2
+	         $079a = Camera_Update.sameSign_u2
+	         $07a0 = Camera_Update.done_u2
+	         $07a4 = Camera_Update.AdjustToFrameRight
+	         $07bb = Camera_Update.tmp_jmp_02
+	         $07c7 = Camera_Update.AdjustVerticalPosition
+	         $07c7 = Camera_Update.FrameRightOK
+	         $07e8 = Camera_Update.leftPositive_u3
+	         $07ee = Camera_Update.sameSign_u3
+	         $07f4 = Camera_Update.done_u3
+	         $07fa = Camera_Update.AdjustToFrameTop
+	         $080b = Camera_Update.signExtendTop
+	         $0817 = Camera_Update.tmp_jmp_03
+	         $0828 = Camera_Update.FrameTopOK
+	         $0852 = Camera_Update.leftPositive_u4
+	         $0858 = Camera_Update.sameSign_u4
+	         $085e = Camera_Update.done_u4
+	         $0862 = Camera_Update.AdjustToFrameBottom
+	         $0878 = Camera_Update.tmp_jmp_04
+	         $0886 = Camera_Update.VerticalDone
+	SECTION: $0896-$09da ($0145 bytes) ["WorldCode"]
+	         $0896 = GetShadowMapTileFromWorldPosition
+	         $090d = UpdateShadowMap
+	         $091b = UpdateShadowMap.not_moved_right
+	         $0924 = UpdateShadowMap.x_delta_is_set
+	         $0939 = UpdateShadowMap.skip_sign_extend_hl
+	         $0961 = UpdateShadowMap.column_copy_loop
+	         $0978 = UpdateShadowMap.skip_offset_carry
+	         $0982 = UpdateShadowMap.not_moved_along_x
+	         $0983 = CopyColumnToTileMap
+	         $098f = CopyColumnToTileMap.next_row
+	         $0998 = CopyColumnToTileMap.skip_src_carry
+	         $099f = CopyColumnToTileMap.skip_dst_carry
+	         $09a3 = InitShadowMap
+	         $09ab = InitShadowMap.next_tile
+	         $09c6 = InitShadowMap.next_foo
+	         $09d6 = InitShadowMap.next_bar
+	EMPTY: $09db-$3fff ($3625 bytes)
+	TOTAL EMPTY: $363d bytes
 
 WRAM0 bank #0:
 	SECTION: $c000-$c01b ($001c bytes) ["CameraVariables"]

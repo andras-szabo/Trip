@@ -13,7 +13,7 @@ DEF MAX_TRACER_SPEED_SPF EQU 64
 DEF DEFAULT_ACCELERATION EQU 8
 DEF DEFAULT_FRICTION EQU 8
 DEF DEFAULT_JUMP_STRENGTH EQU 64
-DEF DEFAULT_GRAVITY EQU 0				; for testing
+DEF DEFAULT_GRAVITY EQU 8				; for testing
 
 DEF WALL_TILE EQU 1
 
@@ -75,7 +75,7 @@ Main:
 	;call CheckWallCollisions	; d and e now contain _updated_ horizontal position delta
 
 	; /// testing
-	call CheckWallCollisions_Updated
+	call CheckWallCollisions_Updated	; d and e now contain updated position delta
 
 	; Update world positions
 	call UpdateWorldPosition
@@ -646,18 +646,18 @@ CheckWallCollisions_Updated:
 
 	push de
 
-	call GetShadowMapTileFromWorldPosition
-	ld	a, h
-	ld	[wH], a
+	call GetShadowMapTileFromWorldPosition		; return the address of the tile in question in HL
+	ld	a, h									; load the address of this tile into
+	ldh	[wH], a									; wH, wL, which live in the HRAM
 	ld	a, l
-	ld	[wL], a
+	ldh	[wL], a
 
-	pop de
+	pop de										; de now contain horizontal and vertical move deltas
 
-	xor	a
-	ldh	[wTilesMoved], a
+	xor	a					
+	ldh	[wTilesMoved], a						; clear [wTilesMoved]
 
-	ld	a, d
+	ld	a, d	
 	or	a
 	jr	z, .DoneCheckingHorizontalDelta					; if d == 0, no need to check anything
 
@@ -723,7 +723,7 @@ CheckWallCollisions_Updated:
 .CheckNextTileToTheRight:
 	inc	hl
 	ld	a, [hl]
-	ld  [wTileData], a
+	ldh [wTileData], a
 	or	a				; TODO check w/ WALL_TILE
 	jr	nz, .ClampRightAndDone
 
@@ -741,10 +741,10 @@ CheckWallCollisions_Updated:
 .ClampRightAndDone:
 	ldh	a, [wTilesMoved]
 
+	sla	a	; multiply by 8 for each tile moved
 	sla	a
 	sla	a
-	sla	a
-	sub	b
+	sub	b	; b contains the initial currentPixelOffset
 
 	ld	d, a
 	bit	7, d
@@ -753,14 +753,80 @@ CheckWallCollisions_Updated:
 	sub	b
 	dec a
 	ld	d, a
-	jr	.DoneCheckingHorizontalDelta
+	;jr	.DoneCheckingHorizontalDelta
 
 .DoneCheckingHorizontalDelta:
-	ld	a, [wH]
-	ld	h, a			; just in case we'll need
-	ld	a, [wL]
-	ld	l, a			; these for vertical checks
 
+	ld	a, e	; if the vertical delta is 0
+	or	a		; then
+	ret	z		; we can return.
+
+	ldh	a, [wH]		; otherwise, load into hl the previously saved
+	ld	h, a		; [wH, wL] -> the result of calling
+	ldh	a, [wL]		; GetShadowMapTileFromWorldPosition
+	ld	l, a			
+
+	xor	a
+	ldh	[wTotalPixels], a
+	ldh	[wTilesMoved], a
+
+	bit	7, e				; if e is negative, then we are
+	jr	nz, .CheckGoingUp	; going up. Otherwise...
+
+	push bc
+	ld	bc, 32
+	add	hl, bc				; hl now points to the tile where the bottom
+							; sprite is. we have to assume this is a non-blocking
+							; tile, because otherwise we would not be able to
+							; have the sprite there.
+	pop bc
+
+	ld	a, [wWorldPosY]		; point to the bottom-most pixel of the
+	add	15					; two sprites, which is 15 pixels below the
+	and	a, %00000111		; current one, b/c we know we're 2 tiles tall.
+	ld	b, a				; save current pixel offset for laterz
+
+	ldh	[wCurrentPixelOffset], a	; store [wCurrentPixelOffset]
+	add	e							; increase pixel offset w/ pos delta
+	cp	8
+	jr	c, .DoneCheckingVerticalDelta	; if (a + e) - 8 < 0, then we're not
+										; moving to a new tile, so we're all good.
+	ldh [wTotalPixels], a				; total pixels (remaining) to move
+	
+.CheckNextTileDown:
+	push bc
+	ld	bc, 32
+	add	hl, bc				; check the next tile below
+	pop bc
+
+	ld	a, [hl]
+	ldh	[wTileData], a
+	or	a					; TODO: check w/ actual wall tile; for now: is it non-zero?
+	jr	nz, .ClampDownAndDone
+
+	ldh	a, [wTilesMoved]
+	inc	a
+	ldh	[wTilesMoved], a
+
+	ldh	a, [wTotalPixels]
+	sub	8
+	ldh	[wTotalPixels], a
+
+	jr	nc, .CheckNextTileDown
+	jr	.DoneCheckingVerticalDelta
+
+.ClampDownAndDone:
+	ldh	a, [wTilesMoved]
+	sla	a	; multiply tiles moved by 8 pixels
+	sla	a
+	sla	a
+	sub	b
+	add	7
+	ld	e, a
+	jr	.DoneCheckingVerticalDelta
+
+.CheckGoingUp:
+.DoneCheckingVerticalDelta
 	ret
 
 ;@param d: horizontal position delta
@@ -1120,7 +1186,7 @@ InitGlobals:
 	ld	hl, wWorldPosX
 	call StoreWord
 
-	ld	bc, 120
+	ld	bc, 40
 	ld	hl, wWorldPosY
 	call StoreWord
 
