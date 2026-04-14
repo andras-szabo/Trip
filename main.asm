@@ -817,6 +817,18 @@ CheckWallCollisions_Updated:
 
 	ldh	[wCurrentPixelOffset], a	; store [wCurrentPixelOffset]
 
+	; When wWorldPosY % 8 == 0, CPO == 7, and the bottom pixel is exactly in
+	; the tile one row below GetShadowMapTileFromWorldPosition (already set).
+	; When wWorldPosY % 8 >= 1, CPO < 7, and the bottom pixel is in the tile
+	; TWO rows below — advance hl one more row.
+	cp	7
+	jr	z, .BottomTileLocated
+	push bc
+	ld	bc, 32
+	add	hl, bc
+	pop	bc
+.BottomTileLocated:
+
 	; Find teh remainder
 	ld	a, e
 	and	a, %00000111
@@ -858,7 +870,7 @@ CheckWallCollisions_Updated:
 	ld	a, e
 	or	a
 	jr	z, .FullyConsumedE	; if e == 0, we're done, we fully
-									; consumed e
+							; consumed e
 
 	sub	a, 8						; otherwise, subtract 8
 	ld	e, a
@@ -875,18 +887,15 @@ CheckWallCollisions_Updated:
 	ld	a, [hl]
 	or	a
 	jr	z, .Floop			; if the next tile is not ground, continue
-							; if it is ground -> we'll clamp
 
 .ClampDownAndDone:
 	ldh	a, [wTotalPixels]
 	add	b					; a = total pixels + current pixel offset
-	ldh	[wA], a				; wA = total pixels + current pixel offset
-	and	a, %00000111		; a = remainder
-	ldh [wB], a				; wB = remainder
-	ld	b, a				; we don't need b anymore
-	ldh	a, [wA]				; a = total pixels + current pixel offset
-	sub	b					; a = a - b
-	dec	a					; a = a - b - 1
+	and	a, %00000111		; a = (total pixels + CPO) % 8 = remainder
+	ld	b, a				; b = remainder
+	ldh	a, [wTotalPixels]	; a = total pixels (without CPO)
+	sub	b					; a = total pixels - remainder
+	dec	a					; a = total pixels - remainder - 1
 	ld	e, a
 
 	jr	.DoneCheckingVerticalDelta
