@@ -757,6 +757,35 @@ CheckWallCollisions_Updated:
 
 .DoneCheckingHorizontalDelta:
 
+	; OK so what do we actually need to do here?
+	;	- e contains how many pixels we should move down.
+	;	- first, find e's remainder after dividing by 8. ([REMAINDER])
+	;	- initialize some variable to keep track of actual movement.
+	;	- find the current pixel offset of the bottom row of the bottom sprite.
+	;	- check if [CURRENT_PIXEL_OFFSET] + [REMAINDER] < 8
+	;			- if it is, add REMAINDER to [SAFELY_MOVABLE_PIXELS], and continue.
+	;			- if it's not, check if the next tile is ground.
+	;				- if it is, then move REMAINDER into [CLAMPABLE_PIXELS], and jump to clamping.
+	;				- if it isn't, then add REMAINDER to [SAFELY_MOVABLE_PIXELS] and continue
+	;
+	;			- from e, subtract REMAINDER.
+	;			
+	;			floop:
+	;			- if e == 0
+	;				- jump to clamping.
+	;			- otherwise, subtract 8 from e.	
+	;			- check if the next tile is ground.
+	;				- if it is, then add 8 to [CLAMPABLE_PIXELS], and jump to clamping.
+	;				= if it isn't, then add 8 to [SAFELY_MOVABLE_PIXELS], and continue to floop.
+	;	
+	;			now then:
+	;			to clamp:
+	;			add [CURRENT_PIXEL_OFFSET] + [SAFELY_MOVABLE_PIXELS] + [CLAMPABLE_PIXELS]
+	;			get remainder after division by 8
+	;			total amount moved = [SMP] + [CP] - REMAINDER - 1.
+	;
+	;			and so mybe SMP and CP don't need to be 2 separate things.
+
 	ld	a, e	; if the vertical delta is 0
 	or	a		; then
 	ret	z		; we can return.
@@ -787,41 +816,83 @@ CheckWallCollisions_Updated:
 	ld	b, a				; save current pixel offset for laterz
 
 	ldh	[wCurrentPixelOffset], a	; store [wCurrentPixelOffset]
-	add	e							; increase pixel offset w/ pos delta
+
+	; Find teh remainder
+	ld	a, e
+	and	a, %00000111
+	ldh	[wA], a				; wA contains the remainder.
+
+	add	b					; a = currentPixelOffset + movement-remainder
 	cp	8
-	jr	c, .DoneCheckingVerticalDelta	; if (a + e) - 8 < 0, then we're not
-										; moving to a new tile, so we're all good.
-	ldh [wTotalPixels], a				; total pixels (remaining) to move
-	
-.CheckNextTileDown:
+	jr	c, .VerticalCheck01	; if (cpo + remainder) < 8, all good, just add remainder
+
+	; otherwise, let's check the next tile
 	push bc
 	ld	bc, 32
-	add	hl, bc				; check the next tile below
+	add	hl, bc
+	pop	bc
+
+	ld	a, [hl]
+	or	a
+	jr	z, .VerticalCheck01		; if next tile is empty, add remainder to total pixels and move on
+
+	; however if it is not, then:
+	ldh	a, [wA]
+	ldh	[wTotalPixels], a
+	jr .ClampDownAndDone
+
+.VerticalCheck01:
+	ldh	a, [wA]
+	ldh	[wTotalPixels], a
+
+	push bc
+	ldh	a, [wA]
+	ld	b, a
+	ld	a, e
+	sub	a, b
+
+	ld	e, a			; e = e - REMAINDER
+	pop	bc
+
+.Floop:
+	ld	a, e
+	or	a
+	jr	z, .FullyConsumedE	; if e == 0, we're done, we fully
+									; consumed e
+
+	sub	a, 8						; otherwise, subtract 8
+	ld	e, a
+
+	ldh	a, [wTotalPixels]
+	add	8
+	ldh [wTotalPixels], a
+
+	push bc
+	ld	bc, 32	
+	add	hl, bc
 	pop bc
 
 	ld	a, [hl]
-	ldh	[wTileData], a
-	or	a					; TODO: check w/ actual wall tile; for now: is it non-zero?
-	jr	nz, .ClampDownAndDone
-
-	ldh	a, [wTilesMoved]
-	inc	a
-	ldh	[wTilesMoved], a
-
-	ldh	a, [wTotalPixels]
-	sub	8
-	ldh	[wTotalPixels], a
-
-	jr	nc, .CheckNextTileDown
-	jr	.DoneCheckingVerticalDelta
+	or	a
+	jr	z, .Floop			; if the next tile is not ground, continue
+							; if it is ground -> we'll clamp
 
 .ClampDownAndDone:
-	ldh	a, [wTilesMoved]
-	sla	a	; multiply tiles moved by 8 pixels
-	sla	a
-	sla	a
-	sub	b
-	add	7
+	ldh	a, [wTotalPixels]
+	add	b					; a = total pixels + current pixel offset
+	ldh	[wA], a				; wA = total pixels + current pixel offset
+	and	a, %00000111		; a = remainder
+	ldh [wB], a				; wB = remainder
+	ld	b, a				; we don't need b anymore
+	ldh	a, [wA]				; a = total pixels + current pixel offset
+	sub	b					; a = a - b
+	dec	a					; a = a - b - 1
+	ld	e, a
+
+	jr	.DoneCheckingVerticalDelta
+
+.FullyConsumedE:
+	ldh a, [wTotalPixels]
 	ld	e, a
 	jr	.DoneCheckingVerticalDelta
 
