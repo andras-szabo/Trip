@@ -498,8 +498,7 @@ UpdateVerticalAcceleration:
 	ld	e, a
 
 	; Check if "a" is pressed
-	; TODO clean this up
-	ld	a, 0;[wCurKeys]
+	ld	a, [wCurKeys]
 	ld	b, a
 	ld	a, [wNewKeys]
 	or	b
