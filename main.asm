@@ -816,7 +816,7 @@ CheckWallCollisions_Updated:
 	ld	a, [wWorldPosY]		; check the top vertical offset
 	and	a, %00000111
 	jr	z, .hl_adjustment_done
-	add	hl, bc
+	add	hl, bc				; if we need to, adjust hl by moving it to the _next_ tile.
 
 .hl_adjustment_done:
 	pop bc
@@ -1328,7 +1328,7 @@ InitGlobals:
 	ld	hl, wWorldPosX
 	call StoreWord
 
-	ld	bc, 40
+	ld	bc, 0
 	ld	hl, wWorldPosY
 	call StoreWord
 
@@ -1371,42 +1371,6 @@ Init:
 
 	call TurnOnLCD
 	ret
-
-/*
-SECTION "Globals", WRAM-1
-wSpeedPerFrameX:	db		; in subpixels (15 subpixel = 1 pixel)
-wSpeedPerFrameY:	db
-wCurrentSubPixelX:	db
-wCurrentSubPixelY:	db
-
-wWorldPosX:			dw
-wWorldPosY:			dw
-
-wAcceleration:		db
-wJumpStrength:		db		; starting vertical acceleration, sp/frame
-wFriction:			db		; reducing lateral movement speed, sp/frame
-wGravity:			db		; sp/frame, to be applied on the y axis
-
-SECTION "Foo", HRAM[$FF79]
-wCurrentAccX:		db
-wCurrentAccY:		db
-wCurrentPosDeltaX:	db
-wCurrentPosDeltaY:	db
-
-wA:					db		; hi ram shadow registers,
-wB:					db		; so we can save temp copies
-wC:					db		; without going thru the
-wD:					db		; stack
-wE:					db
-wH:					db
-wL:					db
-
-wColumnToLoad:		db
-
-SECTION "Input variables", WRAM-1
-wCurKeys:	db
-wNewKeys:	db
-	*/
 
 SECTION "Tile data", ROM0
 

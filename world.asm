@@ -331,7 +331,7 @@ CopyColumnToTileMap:
     ret
 
 
-; Load a striped pattern for now
+; Create some initial map for testing
 InitShadowMap:
     xor a
     ld  d, a
@@ -367,9 +367,9 @@ InitShadowMap:
     dec d
     jr  nz, .next_foo
 
-    ; Just a test: set row 19 blocking
+    ; Just a test: set a row blocking
     ld  hl, wShadowMapBuffer
-    ld  bc, 17 * 32
+    ld  bc, 20 * 32
     add hl, bc
     ld  d, 32
     ld  a, 1
@@ -378,5 +378,24 @@ InitShadowMap:
     ld  [hli], a
     dec d
     jr  nz, .next_bar
+
+    ; Just a test: set 2 rows non-blocking
+    ld  hl, wShadowMapBuffer
+    ld  bc, 15 * 32
+    add hl, bc
+    ld  d, 32
+    xor a
+
+    ld  bc, 32
+
+.next_baz:
+    ld  [hl], a
+    push hl
+    add hl, bc
+    ld  [hl], a
+    pop hl
+    inc hl
+    dec d
+    jr  nz, .next_baz
 
     ret

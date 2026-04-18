@@ -1,5 +1,5 @@
 SUMMARY:
-	ROM0: 2605 bytes used / 13779 free
+	ROM0: 2627 bytes used / 13757 free
 	WRAM0: 1226 bytes used / 2870 free
 	HRAM: 29 bytes used / 98 free
 
@@ -146,7 +146,7 @@ ROM0 bank #0:
 	         $08cc = Camera_Update.AdjustToFrameBottom
 	         $08e2 = Camera_Update.tmp_jmp_04
 	         $08f0 = Camera_Update.VerticalDone
-	SECTION: $0900-$0a44 ($0145 bytes) ["WorldCode"]
+	SECTION: $0900-$0a5a ($015b bytes) ["WorldCode"]
 	         $0900 = GetShadowMapTileFromWorldPosition
 	         $0977 = UpdateShadowMap
 	         $0985 = UpdateShadowMap.not_moved_right
@@ -163,8 +163,9 @@ ROM0 bank #0:
 	         $0a15 = InitShadowMap.next_tile
 	         $0a30 = InitShadowMap.next_foo
 	         $0a40 = InitShadowMap.next_bar
-	EMPTY: $0a45-$3fff ($35bb bytes)
-	TOTAL EMPTY: $35d3 bytes
+	         $0a51 = InitShadowMap.next_baz
+	EMPTY: $0a5b-$3fff ($35a5 bytes)
+	TOTAL EMPTY: $35bd bytes
 
 WRAM0 bank #0:
 	SECTION: $c000-$c01b ($001c bytes) ["CameraVariables"]

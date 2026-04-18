@@ -475,7 +475,7 @@ Camera_Update:
     ld  c, l
 
     bit 7, b
-    jr  .tmp_jmp_03
+    jr  z, .tmp_jmp_03
     ld  bc, 0
 
 .tmp_jmp_03:
