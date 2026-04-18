@@ -13,7 +13,7 @@ DEF MAX_TRACER_SPEED_SPF EQU 64
 DEF DEFAULT_ACCELERATION EQU 8
 DEF DEFAULT_FRICTION EQU 8
 DEF DEFAULT_JUMP_STRENGTH EQU 64
-DEF DEFAULT_GRAVITY EQU 8				; for testing
+DEF DEFAULT_GRAVITY EQU 32				; for testing
 
 DEF WALL_TILE EQU 1
 
@@ -54,7 +54,7 @@ Main:
 	ldh	[wCurrentPosDeltaX], a
 
 	; Integrate vertical acceleration -----------------------------------------
-
+	
 	ldh	a, [wCurrentAccY]
 	ld	hl, wSpeedPerFrameY
 	ld	de, wCurrentSubPixelY
@@ -846,11 +846,10 @@ CheckWallCollisions_Updated:
 	ld	a, [hl]
 	or	a
 	jr	z, .VerticalCheck01		; if next tile is empty, add remainder to total pixels and move on
-
 	; however if it is not, then:
 	ldh	a, [wA]
 	ldh	[wTotalPixels], a
-	jr .ClampDownAndDone
+	jr	.ClampDownAndDone
 
 .VerticalCheck01:
 	ldh	a, [wA]
@@ -1013,13 +1012,77 @@ IntegrateAcceleration:
 	; Applies current acceleration (subpixels/frame) to current speed,
 	; and calculates the position delta, clamped, that the current speed
 	; will result in.
+	;------------------------------------------------------------------------
+	; Let's use 16 bit addition so we can clamp it easily
 
-	ld	b, a		; save current acceleration into d
+	ld	c, a		; load current acceleration into bc
+	ld	b, $FF		; assume that a is negative
+	bit	7, a
+	jr	nz, .acceleration_loaded_into_bc
+	ld	b, 0
+.acceleration_loaded_into_bc:
+
+	; now, load current speed into hl
+	ld	a, [hl]
+
+	push hl
+
+	ld	l, a		; load a into the low bit
+	ld	h, $FF		; assume that it's negative
+	bit	7, a
+	jr	nz, .current_speed_loaded_into_hl
+	ld	h, 0
+.current_speed_loaded_into_hl:
+
+	add	hl, bc		; hl = current speed + current acceleration
+	ld	a, l		; save the resulting, unclamped low byte
+	ldh	[wA], a
+	
+	; if hl negative
+	bit	7, h
+	jr	z, .hl_is_positive
+.hl_is_negative:
+	ld	c, MAX_TRACER_SPEED_SPF
+	ld	b, 0
+	add	hl, bc
+	bit	7, h
+	jr	nz, .hl_needs_clamped_negative
+	jr	.finish
+
+.hl_is_positive:
+	ld	a, MAX_TRACER_SPEED_SPF
+	cpl
+	inc	a	; a = -MAX_TRACE_SPEED_SPF
+	ld	c, a
+	ld	b, $FF
+	add	hl, bc
+	bit	7, h
+	jr	z, .hl_needs_clamped_positive
+	jr .finish
+
+.hl_needs_clamped_negative:
+	ld	a, MAX_TRACER_SPEED_SPF
+	cpl
+	inc	a
+	ldh	[wA], a
+	jr	.finish
+
+.hl_needs_clamped_positive:
+	ld	a, MAX_TRACER_SPEED_SPF
+	ldh	[wA], a
+
+.finish:
+	ld	a, [wA]
+	pop	hl
+	ld	[hl], a
+
+	;--------
+	;ld	b, a		; save current acceleration into b
 
 	; Update current speed
-	ld	a, [hl]
-	add	b
-	ld	[hl], a
+	;ld	a, [hl]
+	;add b
+	;ld	[hl], a
 
 	; If current speed is 0, just return with a positional delta of 0.
 	and	a
@@ -1261,7 +1324,7 @@ InitGlobals:
 
 	; Consider using macros instead
 
-	ld	bc, 16
+	ld	bc, 32
 	ld	hl, wWorldPosX
 	call StoreWord
 

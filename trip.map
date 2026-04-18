@@ -1,5 +1,5 @@
 SUMMARY:
-	ROM0: 2541 bytes used / 13843 free
+	ROM0: 2607 bytes used / 13777 free
 	WRAM0: 1226 bytes used / 2870 free
 	HRAM: 29 bytes used / 98 free
 
@@ -29,7 +29,7 @@ ROM0 bank #0:
 	         $00e4 = DmaRoutine.loop
 	         $00e8 = DmaRoutineEnd
 	EMPTY: $00e8-$00ff ($0018 bytes)
-	SECTION: $0100-$0647 ($0548 bytes) ["Header"]
+	SECTION: $0100-$0689 ($058a bytes) ["Header"]
 	         $0150 = EntryPoint
 	         $0153 = PreMain
 	         $015a = Main
@@ -76,88 +76,95 @@ ROM0 bank #0:
 	         $04b2 = CheckWallCollisions.CheckHorizontal
 	         $04c5 = CheckWallCollisions.SkipWallCheckOnRight
 	         $04d5 = IntegrateAcceleration
-	         $04de = IntegrateAcceleration.ContinueWithNonZeroSpeed
-	         $04ef = IntegrateAcceleration.SubPixelLoopLeft
-	         $04f8 = IntegrateAcceleration.SubPixelLoopRight
-	         $04f9 = IntegrateAcceleration.SubPixelLoopRight2
-	         $0502 = IntegrateAcceleration.MoveNext
-	         $050a = IntegrateAcceleration.CalculatePositionDelta
-	         $050b = IntegrateAcceleration.CalculatePositionDeltaLoop
-	         $0511 = CopyTileDataIntoVRAM
-	         $051e = CopySpriteDataIntoVRAM
-	         $052b = ClearOAM
-	         $0535 = InitTracerSprite
-	         $054e = CopyInitialShadowMapToTileMap
-	         $055b = SetupTileMap
-	         $0561 = SetupTileMap.ClearLoop
-	         $056e = SetupTileMap.TopLoop
-	         $057c = SetupTileMap.BottomLoop
-	         $058d = SetupTileMap.LeftLoop
-	         $059c = SetupTileMap.RightLoop
-	         $05aa = SetupTileMap.MiddlePlatformLoop
-	         $05b1 = WaitForVBlank
-	         $05b9 = ShutdownAudio
-	         $05be = TurnOnLCD
-	         $05ce = TurnOffLCD
-	         $05d3 = InitGlobals
-	         $0623 = Init
-	SECTION: $0648-$08bf ($0278 bytes) ["CameraCode"]
-	         $0648 = Camera_Init_Position
-	         $064f = Camera_Init_Position.x_non_negative
-	         $0656 = Camera_Init_Position.y_non_negative
-	         $0676 = UpdateCamTilePos
-	         $0694 = UpdateCamTilePos.x_is_dirty
-	         $06a1 = UpdateCamTilePos.check_y
-	         $06bb = UpdateCamTilePos.y_is_dirty
-	         $06c8 = UpdateCamTilePos.done
-	         $06c9 = Camera_Init_Deadzone
-	         $0714 = Camera_Update
-	         $0757 = Camera_Update.leftPositive_u1
-	         $075d = Camera_Update.sameSign_u1
-	         $0763 = Camera_Update.done_u1
-	         $0769 = Camera_Update.AdjustToFrameLeft
-	         $077a = Camera_Update.signExtendLeft
-	         $0784 = Camera_Update.tmp_jmp_01
-	         $0794 = Camera_Update.FrameLeftOK
-	         $07be = Camera_Update.leftPositive_u2
-	         $07c4 = Camera_Update.sameSign_u2
-	         $07ca = Camera_Update.done_u2
-	         $07ce = Camera_Update.AdjustToFrameRight
-	         $07e5 = Camera_Update.tmp_jmp_02
-	         $07f1 = Camera_Update.AdjustVerticalPosition
-	         $07f1 = Camera_Update.FrameRightOK
-	         $0812 = Camera_Update.leftPositive_u3
-	         $0818 = Camera_Update.sameSign_u3
-	         $081e = Camera_Update.done_u3
-	         $0824 = Camera_Update.AdjustToFrameTop
-	         $0835 = Camera_Update.signExtendTop
-	         $0841 = Camera_Update.tmp_jmp_03
-	         $0852 = Camera_Update.FrameTopOK
-	         $087c = Camera_Update.leftPositive_u4
-	         $0882 = Camera_Update.sameSign_u4
-	         $0888 = Camera_Update.done_u4
-	         $088c = Camera_Update.AdjustToFrameBottom
-	         $08a2 = Camera_Update.tmp_jmp_04
-	         $08b0 = Camera_Update.VerticalDone
-	SECTION: $08c0-$0a04 ($0145 bytes) ["WorldCode"]
-	         $08c0 = GetShadowMapTileFromWorldPosition
-	         $0937 = UpdateShadowMap
-	         $0945 = UpdateShadowMap.not_moved_right
-	         $094e = UpdateShadowMap.x_delta_is_set
-	         $0963 = UpdateShadowMap.skip_sign_extend_hl
-	         $098b = UpdateShadowMap.column_copy_loop
-	         $09a2 = UpdateShadowMap.skip_offset_carry
-	         $09ac = UpdateShadowMap.not_moved_along_x
-	         $09ad = CopyColumnToTileMap
-	         $09b9 = CopyColumnToTileMap.next_row
-	         $09c2 = CopyColumnToTileMap.skip_src_carry
-	         $09c9 = CopyColumnToTileMap.skip_dst_carry
-	         $09cd = InitShadowMap
-	         $09d5 = InitShadowMap.next_tile
-	         $09f0 = InitShadowMap.next_foo
-	         $0a00 = InitShadowMap.next_bar
-	EMPTY: $0a05-$3fff ($35fb bytes)
-	TOTAL EMPTY: $3613 bytes
+	         $04de = IntegrateAcceleration.acceleration_loaded_into_bc
+	         $04e9 = IntegrateAcceleration.current_speed_loaded_into_hl
+	         $04f1 = IntegrateAcceleration.hl_is_negative
+	         $04fc = IntegrateAcceleration.hl_is_positive
+	         $050a = IntegrateAcceleration.hl_needs_clamped_negative
+	         $0512 = IntegrateAcceleration.hl_needs_clamped_positive
+	         $0516 = IntegrateAcceleration.finish
+	         $0520 = IntegrateAcceleration.ContinueWithNonZeroSpeed
+	         $0531 = IntegrateAcceleration.SubPixelLoopLeft
+	         $053a = IntegrateAcceleration.SubPixelLoopRight
+	         $053b = IntegrateAcceleration.SubPixelLoopRight2
+	         $0544 = IntegrateAcceleration.MoveNext
+	         $054c = IntegrateAcceleration.CalculatePositionDelta
+	         $054d = IntegrateAcceleration.CalculatePositionDeltaLoop
+	         $0553 = CopyTileDataIntoVRAM
+	         $0560 = CopySpriteDataIntoVRAM
+	         $056d = ClearOAM
+	         $0577 = InitTracerSprite
+	         $0590 = CopyInitialShadowMapToTileMap
+	         $059d = SetupTileMap
+	         $05a3 = SetupTileMap.ClearLoop
+	         $05b0 = SetupTileMap.TopLoop
+	         $05be = SetupTileMap.BottomLoop
+	         $05cf = SetupTileMap.LeftLoop
+	         $05de = SetupTileMap.RightLoop
+	         $05ec = SetupTileMap.MiddlePlatformLoop
+	         $05f3 = WaitForVBlank
+	         $05fb = ShutdownAudio
+	         $0600 = TurnOnLCD
+	         $0610 = TurnOffLCD
+	         $0615 = InitGlobals
+	         $0665 = Init
+	SECTION: $068a-$0901 ($0278 bytes) ["CameraCode"]
+	         $068a = Camera_Init_Position
+	         $0691 = Camera_Init_Position.x_non_negative
+	         $0698 = Camera_Init_Position.y_non_negative
+	         $06b8 = UpdateCamTilePos
+	         $06d6 = UpdateCamTilePos.x_is_dirty
+	         $06e3 = UpdateCamTilePos.check_y
+	         $06fd = UpdateCamTilePos.y_is_dirty
+	         $070a = UpdateCamTilePos.done
+	         $070b = Camera_Init_Deadzone
+	         $0756 = Camera_Update
+	         $0799 = Camera_Update.leftPositive_u1
+	         $079f = Camera_Update.sameSign_u1
+	         $07a5 = Camera_Update.done_u1
+	         $07ab = Camera_Update.AdjustToFrameLeft
+	         $07bc = Camera_Update.signExtendLeft
+	         $07c6 = Camera_Update.tmp_jmp_01
+	         $07d6 = Camera_Update.FrameLeftOK
+	         $0800 = Camera_Update.leftPositive_u2
+	         $0806 = Camera_Update.sameSign_u2
+	         $080c = Camera_Update.done_u2
+	         $0810 = Camera_Update.AdjustToFrameRight
+	         $0827 = Camera_Update.tmp_jmp_02
+	         $0833 = Camera_Update.AdjustVerticalPosition
+	         $0833 = Camera_Update.FrameRightOK
+	         $0854 = Camera_Update.leftPositive_u3
+	         $085a = Camera_Update.sameSign_u3
+	         $0860 = Camera_Update.done_u3
+	         $0866 = Camera_Update.AdjustToFrameTop
+	         $0877 = Camera_Update.signExtendTop
+	         $0883 = Camera_Update.tmp_jmp_03
+	         $0894 = Camera_Update.FrameTopOK
+	         $08be = Camera_Update.leftPositive_u4
+	         $08c4 = Camera_Update.sameSign_u4
+	         $08ca = Camera_Update.done_u4
+	         $08ce = Camera_Update.AdjustToFrameBottom
+	         $08e4 = Camera_Update.tmp_jmp_04
+	         $08f2 = Camera_Update.VerticalDone
+	SECTION: $0902-$0a46 ($0145 bytes) ["WorldCode"]
+	         $0902 = GetShadowMapTileFromWorldPosition
+	         $0979 = UpdateShadowMap
+	         $0987 = UpdateShadowMap.not_moved_right
+	         $0990 = UpdateShadowMap.x_delta_is_set
+	         $09a5 = UpdateShadowMap.skip_sign_extend_hl
+	         $09cd = UpdateShadowMap.column_copy_loop
+	         $09e4 = UpdateShadowMap.skip_offset_carry
+	         $09ee = UpdateShadowMap.not_moved_along_x
+	         $09ef = CopyColumnToTileMap
+	         $09fb = CopyColumnToTileMap.next_row
+	         $0a04 = CopyColumnToTileMap.skip_src_carry
+	         $0a0b = CopyColumnToTileMap.skip_dst_carry
+	         $0a0f = InitShadowMap
+	         $0a17 = InitShadowMap.next_tile
+	         $0a32 = InitShadowMap.next_foo
+	         $0a42 = InitShadowMap.next_bar
+	EMPTY: $0a47-$3fff ($35b9 bytes)
+	TOTAL EMPTY: $35d1 bytes
 
 WRAM0 bank #0:
 	SECTION: $c000-$c01b ($001c bytes) ["CameraVariables"]
