@@ -752,7 +752,6 @@ CheckWallCollisions_Updated:
 	sub	b
 	dec a
 	ld	d, a
-	;jr	.DoneCheckingHorizontalDelta
 
 .DoneCheckingHorizontalDelta:
 
@@ -802,11 +801,24 @@ CheckWallCollisions_Updated:
 	jr	nz, .CheckGoingUp	; going up. Otherwise...
 
 	push bc
+
+
 	ld	bc, 32
 	add	hl, bc				; hl now points to the tile where the bottom
-							; sprite is. we have to assume this is a non-blocking
+							; sprite may be. I mean, for sure it's going to be 
+							; one tile below the top. But actually, if the
+							; y position of the top sprite doesn't align
+							; fully with the top tile, then the bottom tile to
+							; check will _actually_ be 2 tiles under the current one!
+							; we have to assume this is a non-blocking
 							; tile, because otherwise we would not be able to
 							; have the sprite there.
+	ld	a, [wWorldPosY]		; check the top vertical offset
+	and	a, %00000111
+	jr	z, .hl_adjustment_done
+	add	hl, bc
+
+.hl_adjustment_done:
 	pop bc
 
 	ld	a, [wWorldPosY]		; point to the bottom-most pixel of the
@@ -815,18 +827,6 @@ CheckWallCollisions_Updated:
 	ld	b, a				; save current pixel offset for laterz
 
 	ldh	[wCurrentPixelOffset], a	; store [wCurrentPixelOffset]
-
-	; When wWorldPosY % 8 == 0, CPO == 7, and the bottom pixel is exactly in
-	; the tile one row below GetShadowMapTileFromWorldPosition (already set).
-	; When wWorldPosY % 8 >= 1, CPO < 7, and the bottom pixel is in the tile
-	; TWO rows below — advance hl one more row.
-	cp	7
-	jr	z, .BottomTileLocated
-	push bc
-	ld	bc, 32
-	add	hl, bc
-	pop	bc
-.BottomTileLocated:
 
 	; Find teh remainder
 	ld	a, e
